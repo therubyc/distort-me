@@ -1,0 +1,134 @@
+/* Distort Me panel, in the family style of Make Me Analog: dark ground,
+ * spaced-out monospace capitals, numbered sections with //// fills.
+ *
+ * UXP supports a subset of CSS: no clip-path, no grid, no web fonts and
+ * no generic "monospace" family. The title is an SVG (Barlow Condensed,
+ * OFL) so it looks the same everywhere; the text uses the system's
+ * monospace font. */
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #1b1b1b;
+  color: #e8e6e1;
+  font-family: "Consolas", "Menlo", "SF Mono", "Courier New";
+  font-size: 11px;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px 12px 16px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.dim { color: #8a8884; }
+.small { font-size: 10px; letter-spacing: 1px; }
+.hidden { display: none !important; }
+.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grow { flex: 1; min-width: 0; }
+
+.row { display: flex; flex-direction: row; align-items: center; }
+.row > * { margin-right: 6px; }
+.row > *:last-child { margin-right: 0; }
+.row.between { justify-content: space-between; }
+.col { display: flex; flex-direction: column; min-width: 0; }
+.col > * { margin-bottom: 6px; }
+.col > *:last-child { margin-bottom: 0; }
+
+/* ---- header ---- */
+.head { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; }
+.title { width: 146px; height: 74px; }
+.head-right { display: flex; flex-direction: column; align-items: flex-end; letter-spacing: 2px; }
+.head-right > * { margin-bottom: 10px; }
+.toggle { cursor: pointer; padding: 3px 6px; }
+.toggle.on { background-color: #e8e6e1; color: #1b1b1b; }
+.hr { height: 2px; background-color: #e8e6e1; margin: 10px 0 12px 0; }
+.thin { height: 1px; background-color: #3a3a3a; margin: 6px 0 10px 0; }
+
+/* ---- tabs ---- */
+.tabs { display: flex; flex-direction: row; align-items: center; letter-spacing: 2px; }
+.tab { padding: 5px 8px; margin-right: 4px; cursor: pointer; color: #e8e6e1; }
+.tab:hover { color: #ffffff; }
+.tab.on { background-color: #e8e6e1; color: #1b1b1b; }
+.ghost { cursor: pointer; letter-spacing: 1px; }
+.ghost:hover { color: #ffffff; }
+.more-toggle { margin-top: 4px; color: #8a8884; letter-spacing: 2px; }
+
+/* ---- preview ---- */
+.preview { position: relative; height: 230px; background-color: #222222; overflow: hidden; }
+.preview #preview { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; }
+.badge { position: absolute; left: 0; top: 0; padding: 2px 6px; letter-spacing: 2px; background-color: #e8e6e1; color: #1b1b1b; }
+.badge.busy { background-color: #c6ff3d; }
+.caption { margin-top: 6px; }
+.caption > * { margin-right: 10px; }
+
+/* ---- sections ---- */
+.section { display: flex; flex-direction: column; margin-top: 16px; }
+.section > * { margin-bottom: 8px; }
+.sec-head { display: flex; flex-direction: row; align-items: center; white-space: nowrap; overflow: hidden; }
+.sec-head .num { color: #c6ff3d; font-weight: 700; margin-right: 12px; }
+.sec-head .name { letter-spacing: 4px; margin-right: 10px; font-size: 12px; }
+.sec-head .fill { color: #555555; flex: 1; overflow: hidden; min-width: 20px; }
+.sec-head .sec-val { color: #8a8884; margin-left: 8px; max-width: 140px; letter-spacing: 1px; }
+
+.box {
+  flex: 1;
+  padding: 6px 4px;
+  border: 1px solid #8a8884;
+  text-align: center;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+.box:hover { border-color: #e8e6e1; }
+
+.seg { display: flex; flex-direction: row; border: 1px solid #8a8884; }
+.seg .opt {
+  flex: 1;
+  padding: 6px 2px;
+  text-align: center;
+  letter-spacing: 2px;
+  color: #8a8884;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+.seg .opt:hover { color: #e8e6e1; }
+.seg .opt.on { background-color: #e8e6e1; color: #1b1b1b; }
+
+.thumb { width: 58px; height: 58px; background-color: #222222; overflow: hidden; }
+.thumb img { width: 58px; height: 58px; }
+
+.picker { border: 1px solid #3a3a3a; max-height: 140px; overflow-y: auto; }
+.picker .item { padding: 5px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; letter-spacing: 1px; }
+.picker .item:hover { background-color: #e8e6e1; color: #1b1b1b; }
+
+/* ASCII sliders: the bar is text, dragging anywhere on it sets the value */
+.slider { margin-bottom: 6px; }
+.slider .top { display: flex; flex-direction: row; justify-content: space-between; letter-spacing: 2px; }
+.slider .name { color: #8a8884; }
+.slider .val { color: #e8e6e1; cursor: pointer; }
+.slider .bar { color: #c6ff3d; white-space: nowrap; overflow: hidden; cursor: ew-resize; padding: 2px 0; }
+.slider .bar .rest { color: #3a3a3a; }
+
+/* ---- footer ---- */
+.spacer { flex: 1; min-height: 14px; }
+.ticks { color: #3a3a3a; white-space: nowrap; overflow: hidden; margin-bottom: 10px; }
+.info { border-top: 1px solid #3a3a3a; padding: 8px 0; color: #8a8884; min-height: 26px; }
+.log { padding: 4px 0 10px 0; letter-spacing: 1px; }
+.log.error { color: #ff5c7a; }
+.foot { justify-content: flex-end; }
+.apply {
+  flex: 1;
+  padding: 12px 0;
+  background-color: #e8e6e1;
+  color: #1b1b1b;
+  font-size: 13px;
+  letter-spacing: 5px;
+  text-align: center;
+  cursor: pointer;
+}
+.apply:hover { background-color: #ffffff; }

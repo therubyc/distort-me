@@ -38,6 +38,12 @@ add_executable(distortme-tests tests/test_core.c)
 target_link_libraries(distortme-tests PRIVATE distortme)
 add_test(NAME core COMMAND distortme-tests)
 
+# JavaScript port used by the panel's preview (needs Node.js)
+find_program(NODE_EXECUTABLE node)
+if(NODE_EXECUTABLE)
+    add_test(NAME js-engine COMMAND ${NODE_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/js/test_engine.js)
+endif()
+
 # --- Photoshop filter plug-in ----------------------------------------------
 # Needs Adobe's Photoshop SDK, which is not part of this repository.
 # Point PHOTOSHOP_SDK_DIR at the folder that contains "pluginsdk", e.g.

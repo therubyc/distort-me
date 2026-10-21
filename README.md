@@ -74,7 +74,8 @@ plugin/common/        Photoshop filter: protocol, settings, actions, map loading
 plugin/win/           Windows dialog and resources
 plugin/mac/           macOS dialog (not built yet)
 plugin/PiPL.json      plug-in description Photoshop reads (Windows and macOS)
-tests/                core tests (ctest) and the fake Photoshop host
+panel/                Photoshop panel (UXP) with live preview, see panel/README.md
+tests/                core tests (ctest), JS port tests and the fake Photoshop host
 samples/              test image and maps
 third_party/stb/      stb_image and stb_image_write (public domain / MIT)
 ```
@@ -87,4 +88,4 @@ The plug-in needs Adobe's Photoshop Plug-In SDK, which you download yourself fro
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Bundled maps will list their source in `CREDITS.md`.
+MIT, see [LICENSE](LICENSE). Third-party parts and, later, bundled maps are listed in [CREDITS.md](CREDITS.md).

@@ -5,6 +5,7 @@
 #include "DistortMeScripting.h"
 #include "PIActions.h"
 
+#include <math.h>
 #include <string.h>
 
 /* The map path is stored as text. Photoshop's text type is not UTF-8,
@@ -54,6 +55,34 @@ static void decode_path(const char *in, size_t len, char *out, size_t cap)
     out[n] = 0;
 }
 
+/* Scripts (UXP batchPlay, ExtendScript) may send a whole number where a
+ * float is expected, or the other way round. Accept both. */
+static bool read_real(ReadDescriptorProcs *rp, PIReadDescriptor token,
+                      DescriptorTypeID type, real64 *out)
+{
+    if (type == typeInteger) {
+        int32 i;
+        if (rp->getIntegerProc(token, &i))
+            return false;
+        *out = (real64)i;
+        return true;
+    }
+    return !rp->getFloatProc(token, out);
+}
+
+static bool read_int(ReadDescriptorProcs *rp, PIReadDescriptor token,
+                     DescriptorTypeID type, int32 *out)
+{
+    if (type == typeFloat) {
+        real64 f;
+        if (rp->getFloatProc(token, &f))
+            return false;
+        *out = (int32)floor(f + 0.5);
+        return true;
+    }
+    return !rp->getIntegerProc(token, out);
+}
+
 bool DMReadDescriptor(FilterRecord *fr, DMSettings *s, bool *showDialog)
 {
     *showDialog = true;
@@ -81,47 +110,47 @@ bool DMReadDescriptor(FilterRecord *fr, DMSettings *s, bool *showDialog)
     while (rp->getKeyProc(token, &key, &type, &flags)) {
         switch (key) {
         case DM_KEY_MODE:
-            if (!rp->getIntegerProc(token, &i32) && i32 >= 0 && i32 <= 2)
+            if (read_int(rp, token, type, &i32) && i32 >= 0 && i32 <= 2)
                 DMSettingsSetMode(&in, (dm_mode)i32);
             break;
         case DM_KEY_STRENGTH:
-            if (!rp->getFloatProc(token, &f64)) in.core.strength = (float)f64;
+            if (read_real(rp, token, type, &f64)) in.core.strength = (float)f64;
             break;
         case DM_KEY_BLUR:
-            if (!rp->getFloatProc(token, &f64)) in.core.map_blur = (float)f64;
+            if (read_real(rp, token, type, &f64)) in.core.map_blur = (float)f64;
             break;
         case DM_KEY_FIT:
-            if (!rp->getIntegerProc(token, &i32)) in.core.map_fit = (dm_map_fit)(i32 ? 1 : 0);
+            if (read_int(rp, token, type, &i32)) in.core.map_fit = (dm_map_fit)(i32 ? 1 : 0);
             break;
         case DM_KEY_SCALE:
-            if (!rp->getFloatProc(token, &f64)) in.core.map_scale = (float)f64;
+            if (read_real(rp, token, type, &f64)) in.core.map_scale = (float)f64;
             break;
         case DM_KEY_OFFSET_X:
-            if (!rp->getFloatProc(token, &f64)) in.core.map_offset_x = (float)f64;
+            if (read_real(rp, token, type, &f64)) in.core.map_offset_x = (float)f64;
             break;
         case DM_KEY_OFFSET_Y:
-            if (!rp->getFloatProc(token, &f64)) in.core.map_offset_y = (float)f64;
+            if (read_real(rp, token, type, &f64)) in.core.map_offset_y = (float)f64;
             break;
         case DM_KEY_MAP_EDGE:
-            if (!rp->getIntegerProc(token, &i32) && i32 >= 0 && i32 <= 2) in.core.map_edge = (dm_edge)i32;
+            if (read_int(rp, token, type, &i32) && i32 >= 0 && i32 <= 2) in.core.map_edge = (dm_edge)i32;
             break;
         case DM_KEY_SRC_EDGE:
-            if (!rp->getIntegerProc(token, &i32) && i32 >= 0 && i32 <= 2) in.core.src_edge = (dm_edge)i32;
+            if (read_int(rp, token, type, &i32) && i32 >= 0 && i32 <= 2) in.core.src_edge = (dm_edge)i32;
             break;
         case DM_KEY_LUMINANCE:
             if (!rp->getBooleanProc(token, &b)) in.core.use_luminance = b ? 1 : 0;
             break;
         case DM_KEY_ANGLE:
-            if (!rp->getFloatProc(token, &f64)) in.core.angle = (float)f64;
+            if (read_real(rp, token, type, &f64)) in.core.angle = (float)f64;
             break;
         case DM_KEY_IOR:
-            if (!rp->getFloatProc(token, &f64)) in.core.ior = (float)f64;
+            if (read_real(rp, token, type, &f64)) in.core.ior = (float)f64;
             break;
         case DM_KEY_FLOW_DIR:
-            if (!rp->getIntegerProc(token, &i32)) in.core.flow_dir = (dm_flow_dir)(i32 ? 1 : 0);
+            if (read_int(rp, token, type, &i32)) in.core.flow_dir = (dm_flow_dir)(i32 ? 1 : 0);
             break;
         case DM_KEY_FLOW_STEPS:
-            if (!rp->getIntegerProc(token, &i32) && i32 > 0 && i32 <= 1024) in.core.flow_steps = i32;
+            if (read_int(rp, token, type, &i32) && i32 > 0 && i32 <= 1024) in.core.flow_steps = i32;
             break;
         case DM_KEY_MAP_PATH:
             if (!rp->getTextProc(token, &text) && text) {

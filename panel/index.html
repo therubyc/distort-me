@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <div class="head">
+    <img class="title" src="icons/title.svg" alt="Distort Me">
+    <div class="head-right">
+      <div class="dim">v0.2</div>
+      <div class="toggle" id="smartToggle" data-info="Apply as a Smart Filter, so you can change it later. Converts the layer to a Smart Object if needed.">[x] SMART</div>
+    </div>
+  </div>
+  <div class="hr"></div>
+
+  <div class="tabs">
+    <div class="tab on" id="srcLayer" data-info="Use the selected layer as the source. Click again to reload it.">LAYER ↻</div>
+    <div class="tab" id="srcOpen" data-info="Open an image file as a new document and use it as the source.">OPEN…</div>
+    <div class="grow"></div>
+    <div class="ghost" id="reset" data-info="Back to the default settings of the current mode.">[-] RESET</div>
+  </div>
+  <div class="thin"></div>
+
+  <div class="preview" id="previewBox" data-info="Live preview. The filter itself always renders at full resolution.">
+    <img id="preview" alt="">
+    <div class="badge hidden" id="badge"></div>
+  </div>
+  <div class="row between small dim caption">
+    <div class="ellipsis grow" id="srcInfo">PREVIEW OF &gt; NOTHING YET</div>
+    <div id="status"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="num">01</span><span class="name">MAP</span><span class="fill">//////////////////////////////////////////////////</span><span class="sec-val ellipsis" id="mapName">NONE</span></div>
+    <div class="row">
+      <div class="thumb"><img id="mapThumb" alt=""></div>
+      <div class="col grow">
+        <div class="row">
+          <div class="box" id="mapFile" data-info="Choose an image file as the map. Any format Photoshop opens.">FILE…</div>
+          <div class="box" id="mapLayer" data-info="Use another layer of this document as the map.">LAYER…</div>
+        </div>
+        <div class="seg" data-key="mapFit">
+          <div class="opt" data-v="0" data-info="The map is stretched over the whole image.">STRETCH</div>
+          <div class="opt" data-v="1" data-info="The map keeps its pixel size and repeats.">TILE</div>
+        </div>
+      </div>
+    </div>
+    <div class="dim small" id="mapInfo"></div>
+    <div id="layerPick" class="picker hidden"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="num">02</span><span class="name">MODE</span><span class="fill">//////////////////////////////////////////////////</span></div>
+    <div class="seg" data-key="mode">
+      <div class="opt" data-v="0" data-info="Red moves pixels sideways, green moves them up and down. 50% grey does nothing.">DISPLACE</div>
+      <div class="opt" data-v="1" data-info="The map is a sheet of glass. Brightness is its thickness.">REFRACT</div>
+      <div class="opt" data-v="2" data-info="Pixels drift along the lines of the map, like ink in water.">FLOW</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-head"><span class="num">03</span><span class="name">PARAMS</span><span class="fill">//////////////////////////////////////////////////</span></div>
+    <div id="sliders"></div>
+    <div class="seg only-0" data-key="useLuminance">
+      <div class="opt" data-v="0" data-info="Red and green channels steer the shift.">RED/GREEN</div>
+      <div class="opt" data-v="1" data-info="Brightness pushes pixels along the angle.">BRIGHTNESS</div>
+    </div>
+    <div class="seg only-2" data-key="flowDir">
+      <div class="opt" data-v="0" data-info="Swirl along lines of equal brightness.">ALONG LINES</div>
+      <div class="opt" data-v="1" data-info="Move towards brighter areas.">UPHILL</div>
+    </div>
+  </div>
+
+  <div class="ghost more-toggle" id="moreToggle" data-info="Show or hide smoothing, map offset and edge handling.">[+] MORE OPTIONS</div>
+
+  <div class="section more">
+    <div class="sec-head"><span class="num">04</span><span class="name">EDGES</span><span class="fill">//////////////////////////////////////////////////</span></div>
+    <div class="seg" data-key="srcEdge">
+      <div class="opt" data-v="0" data-info="Pixels from outside the image repeat the border.">CLAMP</div>
+      <div class="opt" data-v="1" data-info="Pixels from outside wrap around to the other side.">WRAP</div>
+      <div class="opt" data-v="2" data-info="Pixels from outside are mirrored.">MIRROR</div>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+  <div class="ticks">||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</div>
+
+  <div class="info" id="info">INFO &gt; hover any control to read what it does</div>
+  <div class="log" id="log">&gt; ready_</div>
+  <div class="row foot">
+    <div class="apply" id="apply" data-info="Run Distort Me on the layer at full resolution.">APPLY &gt;</div>
+  </div>
+</div>
+<script src="main.js"></script>
+</body>
+</html>
