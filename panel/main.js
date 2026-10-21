@@ -50,21 +50,6 @@ const SLIDERS = [
     { key: 'mapOffsetX', label: 'MAP OFFSET X', min: -1000, max: 1000, step: 1, unit: 'PX', more: true },
     { key: 'mapOffsetY', label: 'MAP OFFSET Y', min: -1000, max: 1000, step: 1, unit: 'PX', more: true }
 ];
-let barCells = 30;
-
-/* As many block characters as fit the bar's width in the current font. */
-function measureBar() {
-    const bar = SLIDERS[0].bar;
-    const probe = document.createElement('span');
-    probe.textContent = '█'.repeat(10);
-    bar.innerHTML = '';
-    bar.appendChild(probe);
-    const cw = probe.getBoundingClientRect().width / 10;
-    const bw = bar.getBoundingClientRect().width;
-    if (cw > 0 && bw > 0)
-        barCells = Math.max(8, Math.floor(bw / cw));
-}
-
 function fmt(v, step) {
     return step < 1 ? v.toFixed(step < 0.1 ? 2 : 1) : String(Math.round(v));
 }
@@ -118,13 +103,22 @@ function buildSliders() {
 function updateSlider(s) {
     const v = state.p[s.key];
     const t = (v - s.min) / (s.max - s.min);
-    const n = Math.round(Math.min(1, Math.max(0, t)) * barCells);
-    s.bar.innerHTML = '';
-    s.bar.appendChild(document.createTextNode('█'.repeat(n)));
-    const rest = document.createElement('span');
-    rest.className = 'rest';
-    rest.textContent = '░'.repeat(barCells - n);
-    s.bar.appendChild(rest);
+    /* Two clipped runs of block characters: the bar always spans the full
+     * width, whatever the font and panel size (no measuring needed). */
+    if (!s.fill) {
+        s.bar.innerHTML = '';
+        s.fill = document.createElement('div');
+        s.fill.className = 'fill';
+        s.fill.textContent = '█'.repeat(120);
+        s.rest = document.createElement('div');
+        s.rest.className = 'rest';
+        s.rest.textContent = '█'.repeat(120); /* dim full blocks: ░ is missing in some UI fonts */
+        s.bar.appendChild(s.rest);
+        s.bar.appendChild(s.fill); /* on top of the track */
+    }
+    const pct = Math.round(Math.min(1, Math.max(0, t)) * 1000) / 10;
+    s.fill.style.width = pct + '%';
+    s.fill.style.display = pct > 0 ? 'block' : 'none';
     s.val.textContent = fmt(v, s.step) + s.unit;
     s.el.classList.toggle('hidden', (!!s.show && !s.show(state.p)) || (!!s.more && !state.more));
 }
@@ -227,22 +221,53 @@ async function readPixels(doc, layerID, max) {
     try {
         const bytes = await id.getData({ chunky: true });
         const sb = res.sourceBounds;
-        const scale = id.width / Math.max(1, sb.right - sb.left);
+        /* With targetSize Photoshop returns a cached pyramid level (res.level,
+         * 1/2^level of full size), and then sourceBounds are in that level's
+         * pixels. Without a cached level it may return full size. Either way,
+         * shrink further here by averaging step×step blocks. */
+        const want = fitSize(docW, docH, max);
+        const lvl = res.level || 0, sbw = sb.right - sb.left;
+        let got, oxL, oyL; /* returned pixels per document pixel, offset in returned pixels */
+        if (lvl > 0 && Math.abs(sbw - id.width) <= 1) {
+            got = Math.pow(2, -lvl);
+            oxL = sb.left;
+            oyL = sb.top;
+        } else {
+            got = id.width / Math.max(1, sbw);
+            oxL = sb.left * got;
+            oyL = sb.top * got;
+        }
+        const step = Math.max(1, Math.floor(got / (want.width / docW)));
+        const scale = got / step;
         const W = Math.max(1, Math.round(docW * scale)), H = Math.max(1, Math.round(docH * scale));
         const img = DM.image(W, H, 4);
         img.alpha = 3;
-        const n = id.components, ox = Math.round(sb.left * scale), oy = Math.round(sb.top * scale);
-        for (let y = 0; y < id.height; y++) {
+        const n = id.components, ox = Math.round(oxL / step), oy = Math.round(oyL / step);
+        const sw = Math.floor(id.width / step), sh = Math.floor(id.height / step), k = 1 / (255 * step * step);
+        for (let y = 0; y < sh; y++) {
             const ty = y + oy;
             if (ty < 0 || ty >= H) continue;
-            for (let x = 0; x < id.width; x++) {
+            for (let x = 0; x < sw; x++) {
                 const tx = x + ox;
                 if (tx < 0 || tx >= W) continue;
-                const s = (y * id.width + x) * n, d = (ty * W + tx) * 4;
-                img.data[d] = bytes[s] / 255;
-                img.data[d + 1] = bytes[s + 1] / 255;
-                img.data[d + 2] = bytes[s + 2] / 255;
-                img.data[d + 3] = n === 4 ? bytes[s + 3] / 255 : 1;
+                let r = 0, g = 0, b = 0, a = 0;
+                for (let j = 0; j < step; j++) {
+                    let s = ((y * step + j) * id.width + x * step) * n;
+                    for (let i = 0; i < step; i++, s += n) {
+                        const al = n === 4 ? bytes[s + 3] : 255;
+                        r += bytes[s] * al / 255;
+                        g += bytes[s + 1] * al / 255;
+                        b += bytes[s + 2] * al / 255;
+                        a += al;
+                    }
+                }
+                const d = (ty * W + tx) * 4;
+                /* averaged premultiplied, stored straight */
+                const am = a * k;
+                img.data[d] = a > 0 ? r / a : 0;
+                img.data[d + 1] = a > 0 ? g / a : 0;
+                img.data[d + 2] = a > 0 ? b / a : 0;
+                img.data[d + 3] = am;
             }
         }
         return { img: img, scale: scale, docW: docW, docH: docH };
@@ -269,6 +294,19 @@ function halve(img) {
     return out;
 }
 
+/* UXP has no object-fit: size and centre the <img> in its box by hand. */
+function fitInBox(target, W, H) {
+    const box = target.parentNode.getBoundingClientRect();
+    if (!box.width || !box.height)
+        return;
+    const k = Math.min(box.width / W, box.height / H);
+    const w = Math.round(W * k), h = Math.round(H * k);
+    target.style.width = w + 'px';
+    target.style.height = h + 'px';
+    target.style.left = Math.round((box.width - w) / 2) + 'px';
+    target.style.top = Math.round((box.height - h) / 2) + 'px';
+}
+
 /* Float RGBA -> 8-bit RGB over a dark checkerboard, then JPEG for <img>. */
 async function showImage(img, target) {
     const W = img.width, H = img.height;
@@ -289,6 +327,7 @@ async function showImage(img, target) {
     try {
         const jpeg = await imaging.encodeImageData({ imageData: id, base64: true });
         target.src = 'data:image/jpeg;base64,' + jpeg;
+        fitInBox(target, W, H);
     } finally {
         id.dispose();
     }
@@ -618,12 +657,10 @@ function reset() {
 }
 
 function init() {
+    /* show unexpected errors in the panel instead of failing silently */
+    window.addEventListener('error', e => log('error: ' + (e.message || e), true));
+    window.addEventListener('unhandledrejection', e => log('error: ' + ((e.reason && e.reason.message) || e.reason), true));
     buildSliders();
-    measureBar();
-    window.addEventListener('resize', () => {
-        measureBar();
-        SLIDERS.forEach(updateSlider);
-    });
     bindSegments();
     bindInfo();
     syncSegments();

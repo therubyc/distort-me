@@ -13,16 +13,13 @@ body {
   color: #e8e6e1;
   font-family: "Consolas", "Menlo", "SF Mono", "Courier New";
   font-size: 11px;
-  overflow: hidden;
+  overflow-y: auto; /* the panel scrolls when it is shorter than its content */
 }
 
 #app {
   display: flex;
   flex-direction: column;
   padding: 14px 16px 12px 16px;
-  height: 100%;
-  box-sizing: border-box;
-  overflow-y: auto;
 }
 
 .dim { color: #8a8884; }
@@ -59,15 +56,15 @@ body {
 .more-toggle { margin-top: 4px; color: #8a8884; letter-spacing: 2px; }
 
 /* ---- preview ---- */
-.preview { position: relative; height: 230px; background-color: #222222; overflow: hidden; }
-.preview #preview { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; }
+.preview { position: relative; height: 200px; background-color: #222222; overflow: hidden; }
+.preview #preview { position: absolute; left: 0; top: 0; }
 .badge { position: absolute; left: 0; top: 0; padding: 2px 6px; letter-spacing: 2px; background-color: #e8e6e1; color: #1b1b1b; }
 .badge.busy { background-color: #c6ff3d; }
 .caption { margin-top: 6px; }
 .caption > * { margin-right: 10px; }
 
 /* ---- sections ---- */
-.section { display: flex; flex-direction: column; margin-top: 16px; }
+.section { display: flex; flex-direction: column; margin-top: 12px; }
 .section > * { margin-bottom: 8px; }
 .sec-head { display: flex; flex-direction: row; align-items: center; white-space: nowrap; overflow: hidden; }
 .sec-head .num { color: #c6ff3d; font-weight: 700; margin-right: 12px; }
@@ -107,15 +104,18 @@ body {
 .picker .item:hover { background-color: #e8e6e1; color: #1b1b1b; }
 
 /* ASCII sliders: the bar is text, dragging anywhere on it sets the value */
-.slider { margin-bottom: 6px; }
+#sliders { width: 100%; }
+.slider { margin-bottom: 6px; width: 100%; }
 .slider .top { display: flex; flex-direction: row; justify-content: space-between; letter-spacing: 2px; }
 .slider .name { color: #8a8884; }
 .slider .val { color: #e8e6e1; cursor: pointer; }
-.slider .bar { color: #c6ff3d; white-space: nowrap; overflow: hidden; cursor: ew-resize; padding: 2px 0; }
-.slider .bar .rest { color: #3a3a3a; }
+.slider .bar { position: relative; display: block; width: 100%; height: 16px; overflow: hidden; cursor: ew-resize; user-select: none; }
+.slider .bar .rest, .slider .bar .fill { position: absolute; left: 0; top: 2px; overflow: hidden; white-space: nowrap; }
+.slider .bar .rest { width: 100%; color: #2c2c2c; }
+.slider .bar .fill { color: #c6ff3d; }
 
 /* ---- footer ---- */
-.spacer { flex: 1; min-height: 14px; }
+.spacer { min-height: 14px; }
 .ticks { color: #3a3a3a; white-space: nowrap; overflow: hidden; margin-bottom: 10px; }
 .info { border-top: 1px solid #3a3a3a; padding: 8px 0; color: #8a8884; min-height: 26px; }
 .log { padding: 4px 0 10px 0; letter-spacing: 1px; }

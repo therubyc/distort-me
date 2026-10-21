@@ -87,14 +87,19 @@ def make(fg='#ece9e2', cols=28, me_rows=None, gap_cells=1.0, track=0.0, W=280.0,
             e=c
             while e<cols and lv[rr,e]==k: e+=1
             x0=c*cell;y0=Y2+rr*cell
-            paths[k].append(f'M{x0:.3f} {y0:.3f}h{(e-c)*cell:.3f}v{cell:.3f}h{-(e-c)*cell:.3f}z')
+            if k==4:
+                paths[4].append(f'M{x0:.3f} {y0:.3f}h{(e-c)*cell:.3f}v{cell:.3f}h{-(e-c)*cell:.3f}z')
+            else:
+                # shade cells as explicit dots (no <pattern>: Photoshop's UXP can't draw them)
+                for cc in range(c,e):
+                    for i,j in pats[k]:
+                        paths[4].append(f'M{cc*cell+i*p:.3f} {y0+j*p:.3f}h{p:.3f}v{p:.3f}h{-p:.3f}z')
             c=e
     # one path per level: no anti-aliasing seams between neighbouring cells
     for k in (1,2,3,4):
         if paths[k]:
-            fill=fg if k==4 else f'url(#dm{k})'
-            out.append(f'<path fill="{fill}" d="{"".join(paths[k])}"/>')
+            out.append(f'<path fill="{fg}" d="{"".join(paths[k])}"/>')
     H=Y2+rows*cell;Wt=max(W,r-l)
     svg=(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{-pad} {-pad} {Wt+2*pad:.2f} {H+2*pad:.2f}" width="{Wt+2*pad:.1f}" height="{H+2*pad:.1f}">'
-         f'<defs>{"".join(defs)}</defs>{"".join(out)}</svg>')
+         f'{"".join(out)}</svg>')
     return svg,(W,H,cell,rows,capH)
