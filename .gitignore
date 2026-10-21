@@ -1,0 +1,11 @@
+build/
+out/
+*.8bf
+*.plugin/
+.vs/
+.vscode/
+.DS_Store
+# The Adobe Photoshop SDK must never be committed (its license forbids redistribution).
+sdk/
+photoshop-sdk/
+pluginsdk/
