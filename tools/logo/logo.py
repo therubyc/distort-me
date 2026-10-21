@@ -3,7 +3,7 @@
 Needs fonttools, numpy and Pillow, plus the fonts as .ttf in DM_FONT_DIR
 (default tools/logo/fonts), e.g. big-shoulders-display-900.ttf converted from
 @fontsource/big-shoulders-display.
-Final logo: logo.make(cols=28, me_rows=6, gap_cells=1, me_gap_cols=1, run_out=1.0)
+Final logo: logo.make(cols=28, me_rows=6, gap_cells=1, me_gap_cols=1, m_cols=15)
 
 Distort Me logo: DISTORT in Space Mono Bold, ME drawn as CP437 shade
 blocks (░▒▓█) on a grid that spans DISTORT's exact ink width."""
@@ -22,7 +22,7 @@ def use(path):
 use(FONT)
 def glyph_bounds(ch):
     bp=BoundsPen(gs);gs[cmap[ord(ch)]].draw(bp);return bp.bounds
-def make(fg='#ece9e2', cols=28, me_rows=None, gap_cells=1.0, track=0.0, W=280.0, pad=0, me_gap_cols=None, run_out=0.0):
+def make(fg='#ece9e2', cols=28, me_rows=None, gap_cells=1.0, track=0.0, W=280.0, pad=0, me_gap_cols=None, run_out=0.0, m_cols=None):
     """me_gap_cols: columns between M and E (None = the font's own spacing).
     run_out: how many cells DISTORT runs past the ME grid on the right, by
     opening up its letter spacing (the left edges stay aligned)."""
@@ -58,7 +58,7 @@ def make(fg='#ece9e2', cols=28, me_rows=None, gap_cells=1.0, track=0.0, W=280.0,
         parts=[(mask('ME'),0,cols)]
     else:
         mM,mE=mask('M'),mask('E');avail=cols-me_gap_cols
-        cm=round(avail*mM.shape[1]/(mM.shape[1]+mE.shape[1]))
+        cm=m_cols or round(avail*mM.shape[1]/(mM.shape[1]+mE.shape[1]))
         parts=[(mM,0,cm),(mE,cm+me_gap_cols,cols)]
     Y2=capH+gap
     # coverage per cell, quantised to 0, 1/4, 1/2, 3/4, 1
