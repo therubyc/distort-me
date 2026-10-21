@@ -9,3 +9,4 @@ out/
 sdk/
 photoshop-sdk/
 pluginsdk/
+build-*/

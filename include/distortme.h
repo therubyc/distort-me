@@ -18,11 +18,18 @@ extern "C" {
 #define DM_VERSION_MINOR 1
 #define DM_VERSION_PATCH 0
 
-/* An RGBA image with float channels in the range 0..1.
- * Pixels are stored row by row: data[(y * width + x) * 4 + c]. */
+/* An image with `channels` interleaved float channels, usually 0..1.
+ * Pixels are stored row by row: data[(y * width + x) * channels + c].
+ * `alpha` is the index of the transparency channel, or -1 if there is
+ * none. With an alpha channel, colours are interpolated premultiplied
+ * so transparent pixels don't bleed dark fringes. */
+#define DM_MAX_CHANNELS 16
+
 typedef struct dm_image {
     int    width;
     int    height;
+    int    channels;
+    int    alpha;
     float *data;
 } dm_image;
 
@@ -88,15 +95,25 @@ typedef enum dm_result {
 /* Fill `p` with sensible defaults for the given mode. */
 void dm_params_default(dm_params *p, dm_mode mode);
 
-/* Allocate / free an image. dm_image_alloc zero-fills the pixels. */
-dm_result dm_image_alloc(dm_image *img, int width, int height);
+/* Allocate / free an image. dm_image_alloc zero-fills the pixels and
+ * sets alpha to -1 (callers set it if the image has transparency). */
+dm_result dm_image_alloc(dm_image *img, int width, int height, int channels);
 void      dm_image_free(dm_image *img);
 
 /* Run the distortion. `dst` must already be allocated with the same
- * size as `src`. `src` and `dst` must not be the same image. The map
- * may have any size. */
+ * size and channel count as `src`. `src` and `dst` must not be the same
+ * image. The map may have any size; its RGB (and alpha, if it has 4
+ * channels) are read, a 1- or 2-channel map counts as grey. */
 dm_result dm_apply(const dm_image *src, const dm_image *map,
                    const dm_params *p, dm_image *dst);
+
+/* Like dm_apply, but only computes a part of the result: `dst` is a
+ * smaller image whose top-left pixel lies at (left, top) in `src`.
+ * The map is still laid over the whole of `src`, so the result matches
+ * dm_apply exactly. Photoshop uses this for selections and bands. */
+dm_result dm_apply_rect(const dm_image *src, const dm_image *map,
+                        const dm_params *p, int left, int top,
+                        dm_image *dst);
 
 const char *dm_mode_name(dm_mode mode);
 

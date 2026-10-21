@@ -49,7 +49,7 @@ static int load(const char *path, dm_image *img)
         stbi_us *px = stbi_load_16(path, &w, &h, &n, 4);
         if (!px)
             return 0;
-        if (dm_image_alloc(img, w, h) != DM_OK) {
+        if (dm_image_alloc(img, w, h, 4) != DM_OK) {
             stbi_image_free(px);
             return 0;
         }
@@ -60,7 +60,7 @@ static int load(const char *path, dm_image *img)
         stbi_uc *px = stbi_load(path, &w, &h, &n, 4);
         if (!px)
             return 0;
-        if (dm_image_alloc(img, w, h) != DM_OK) {
+        if (dm_image_alloc(img, w, h, 4) != DM_OK) {
             stbi_image_free(px);
             return 0;
         }
@@ -68,6 +68,7 @@ static int load(const char *path, dm_image *img)
             img->data[i] = px[i] / 255.0f;
         stbi_image_free(px);
     }
+    img->alpha = 3;
     return 1;
 }
 
@@ -162,7 +163,7 @@ int main(int argc, char **argv)
         dm_image_free(&src);
         return 1;
     }
-    if (dm_image_alloc(&dst, src.width, src.height) != DM_OK) {
+    if (dm_image_alloc(&dst, src.width, src.height, 4) != DM_OK) {
         fprintf(stderr, "out of memory\n");
         return 1;
     }

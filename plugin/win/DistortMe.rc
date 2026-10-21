@@ -1,0 +1,53 @@
+/*
+ * Distort Me - Windows resources: PiPL and settings dialog.
+ * SPDX-License-Identifier: MIT
+ */
+#include <windows.h>
+#include "resource.h"
+
+/* Photoshop 2026 reads the plug-in description from this JSON resource. */
+JSON_PIPL JSON "../PiPL.json"
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+IDD_DISTORTME DIALOGEX 0, 0, 268, 262
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Distort Me"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+    GROUPBOX        "Map image", -1, 7, 4, 254, 104
+    EDITTEXT        IDC_MAP_PATH, 14, 18, 186, 14, ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...", IDC_BROWSE, 204, 18, 50, 14
+    LTEXT           "Fit", -1, 14, 41, 60, 8
+    COMBOBOX        IDC_FIT, 78, 39, 80, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Scale %", IDC_SCALE_LBL, 170, 41, 40, 8
+    EDITTEXT        IDC_SCALE, 214, 39, 40, 14, ES_AUTOHSCROLL
+    LTEXT           "Offset X / Y (px)", -1, 14, 59, 60, 8
+    EDITTEXT        IDC_OFFX, 78, 57, 38, 14, ES_AUTOHSCROLL
+    EDITTEXT        IDC_OFFY, 120, 57, 38, 14, ES_AUTOHSCROLL
+    LTEXT           "Blur (px)", -1, 170, 59, 40, 8
+    EDITTEXT        IDC_BLUR, 214, 57, 40, 14, ES_AUTOHSCROLL
+    LTEXT           "Map edges", -1, 14, 77, 60, 8
+    COMBOBOX        IDC_MAPEDGE, 78, 75, 80, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Grey (50%) means no shift.", -1, 14, 93, 240, 8
+
+    GROUPBOX        "Effect", -1, 7, 112, 254, 124
+    LTEXT           "Mode", -1, 14, 127, 60, 8
+    COMBOBOX        IDC_MODE, 78, 125, 100, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Strength (px)", -1, 14, 145, 60, 8
+    EDITTEXT        IDC_STRENGTH, 78, 143, 50, 14, ES_AUTOHSCROLL
+    AUTOCHECKBOX    "Use brightness + angle", IDC_LUMA, 14, 163, 150, 10
+    LTEXT           "Angle", IDC_ANGLE_LBL, 170, 163, 40, 8
+    EDITTEXT        IDC_ANGLE, 214, 161, 40, 14, ES_AUTOHSCROLL
+    LTEXT           "Refraction index", IDC_IOR_LBL, 14, 181, 60, 8
+    EDITTEXT        IDC_IOR, 78, 179, 50, 14, ES_AUTOHSCROLL
+    LTEXT           "Flow direction", IDC_FLOWDIR_LBL, 14, 199, 60, 8
+    COMBOBOX        IDC_FLOWDIR, 78, 197, 100, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Steps", IDC_STEPS_LBL, 186, 199, 24, 8
+    EDITTEXT        IDC_STEPS, 214, 197, 40, 14, ES_AUTOHSCROLL
+    LTEXT           "Image edges", -1, 14, 217, 60, 8
+    COMBOBOX        IDC_SRCEDGE, 78, 215, 100, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    DEFPUSHBUTTON   "OK", IDOK, 150, 242, 52, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 208, 242, 52, 14
+END

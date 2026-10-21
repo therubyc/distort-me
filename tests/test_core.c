@@ -18,7 +18,8 @@ static int failures = 0;
 /* Gradient source: red = x / w, green = y / h, opaque. */
 static void make_ramp(dm_image *img, int w, int h)
 {
-    dm_image_alloc(img, w, h);
+    dm_image_alloc(img, w, h, 4);
+    img->alpha = 3;
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) {
             float *p = img->data + ((size_t)y * w + x) * 4;
@@ -31,7 +32,8 @@ static void make_ramp(dm_image *img, int w, int h)
 
 static void fill(dm_image *img, int w, int h, float r, float g, float b)
 {
-    dm_image_alloc(img, w, h);
+    dm_image_alloc(img, w, h, 4);
+    img->alpha = 3;
     for (size_t i = 0; i < (size_t)w * h; i++) {
         img->data[i * 4 + 0] = r;
         img->data[i * 4 + 1] = g;
@@ -56,7 +58,7 @@ static void test_flat_map_is_identity(void)
     dm_image src, map, dst;
     make_ramp(&src, 64, 48);
     fill(&map, 7, 5, 0.5f, 0.5f, 0.5f);
-    dm_image_alloc(&dst, 64, 48);
+    dm_image_alloc(&dst, 64, 48, 4);
 
     for (int m = 0; m <= 2; m++) {
         dm_params p;
@@ -74,7 +76,7 @@ static void test_displace_shifts_by_strength(void)
     dm_image src, map, dst;
     make_ramp(&src, 101, 11);
     fill(&map, 4, 4, 1.0f, 0.5f, 0.5f); /* full right, no vertical */
-    dm_image_alloc(&dst, 101, 11);
+    dm_image_alloc(&dst, 101, 11, 4);
 
     dm_params p;
     dm_params_default(&p, DM_MODE_DISPLACE);
@@ -99,12 +101,12 @@ static void test_threads_match_single_thread(void)
 {
     dm_image src, map, a, b;
     make_ramp(&src, 200, 150);
-    dm_image_alloc(&map, 32, 32);
+    dm_image_alloc(&map, 32, 32, 4);
     srand(1);
     for (size_t i = 0; i < 32 * 32 * 4; i++)
         map.data[i] = (float)rand() / RAND_MAX;
-    dm_image_alloc(&a, 200, 150);
-    dm_image_alloc(&b, 200, 150);
+    dm_image_alloc(&a, 200, 150, 4);
+    dm_image_alloc(&b, 200, 150, 4);
 
     for (int m = 0; m <= 2; m++) {
         dm_params p;
@@ -127,7 +129,7 @@ static void test_bad_arguments(void)
     dm_image src, map, dst;
     make_ramp(&src, 8, 8);
     fill(&map, 2, 2, 0.5f, 0.5f, 0.5f);
-    dm_image_alloc(&dst, 4, 4);
+    dm_image_alloc(&dst, 4, 4, 4);
     dm_params p;
     dm_params_default(&p, DM_MODE_DISPLACE);
     CHECK(dm_apply(&src, &map, &p, &dst) == DM_ERR_ARGUMENT, "size mismatch");
@@ -138,8 +140,70 @@ static void test_bad_arguments(void)
     dm_image_free(&dst);
 }
 
+/* A band computed with dm_apply_rect must equal the same rows and
+ * columns of a full dm_apply. */
+static void test_rect_matches_full(void)
+{
+    dm_image src, map, full, part;
+    make_ramp(&src, 120, 90);
+    dm_image_alloc(&map, 16, 16, 3);
+    srand(7);
+    for (size_t i = 0; i < 16 * 16 * 3; i++)
+        map.data[i] = (float)rand() / RAND_MAX;
+    dm_image_alloc(&full, 120, 90, 4);
+    dm_image_alloc(&part, 50, 30, 4);
+
+    for (int m = 0; m <= 2; m++) {
+        dm_params p;
+        dm_params_default(&p, (dm_mode)m);
+        dm_apply(&src, &map, &p, &full);
+        CHECK(dm_apply_rect(&src, &map, &p, 40, 25, &part) == DM_OK, "apply_rect");
+        float d = 0.0f;
+        for (int y = 0; y < 30; y++)
+            for (int x = 0; x < 50; x++)
+                for (int c = 0; c < 4; c++) {
+                    float e = fabsf(part.data[(y * 50 + x) * 4 + c]
+                                  - full.data[((y + 25) * 120 + x + 40) * 4 + c]);
+                    if (e > d)
+                        d = e;
+                }
+        CHECK(d == 0.0f, "rect differs from full result");
+    }
+    CHECK(dm_apply_rect(&src, &map, NULL, 0, 0, &part) == DM_ERR_ARGUMENT, "null params");
+    CHECK(dm_apply_rect(&src, &map, &(dm_params){0}, 80, 0, &part) == DM_ERR_ARGUMENT, "rect outside");
+    dm_image_free(&src);
+    dm_image_free(&map);
+    dm_image_free(&full);
+    dm_image_free(&part);
+}
+
+/* Grey images without alpha (as Photoshop hands them over) work too. */
+static void test_single_channel(void)
+{
+    dm_image src, map, dst;
+    dm_image_alloc(&src, 101, 3, 1);
+    for (int y = 0; y < 3; y++)
+        for (int x = 0; x < 101; x++)
+            src.data[y * 101 + x] = x / 100.0f;
+    dm_image_alloc(&map, 2, 2, 1);
+    for (int i = 0; i < 4; i++)
+        map.data[i] = 1.0f; /* grey map: brightness 1 */
+    dm_image_alloc(&dst, 101, 3, 1);
+
+    dm_params p;
+    dm_params_default(&p, DM_MODE_DISPLACE);
+    p.strength = 5.0f; /* grey map = red and green both 1: shift +5, +5 */
+    CHECK(dm_apply(&src, &map, &p, &dst) == DM_OK, "apply 1 channel");
+    CHECK(fabsf(dst.data[1 * 101 + 10] - 0.15f) < 1e-4f, "1 channel shift");
+    dm_image_free(&src);
+    dm_image_free(&map);
+    dm_image_free(&dst);
+}
+
 int main(void)
 {
+    test_rect_matches_full();
+    test_single_channel();
     test_flat_map_is_identity();
     test_displace_shifts_by_strength();
     test_threads_match_single_thread();

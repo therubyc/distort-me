@@ -1,0 +1,229 @@
+{
+  "PiPLs": [
+    {
+      "Kind": "Filter",
+      "Name": "Distort Me...",
+      "Category": "Distort Me",
+      "Version": 4,
+      "SubVersion": 0,
+      "ComponentVersionShortNum": 0,
+      "ComponentVersionMinorRevNum": 1,
+      "ComponentVersionDotRevNum": 0,
+      "ComponentName": "Distort Me",
+      "CodeMacARM64": "PluginMain",
+      "CodeMacIntel64": "PluginMain",
+      "CodeEntryPointWin64": "PluginMain",
+      "SupportedModes": {
+        "Bitmap": false,
+        "GrayScale": true,
+        "IndexedColor": false,
+        "RGBColor": true,
+        "CMYKColor": true,
+        "HSLColor": false,
+        "HSBColor": false,
+        "Multichannel": true,
+        "Duotone": true,
+        "LABColor": true
+      },
+      "EnableInfo": "in (PSHOP_ImageMode, RGBMode, GrayScaleMode, CMYKMode, MultichannelMode, DuotoneMode, LabMode, RGB48Mode, Gray16Mode, RGB96Mode, Gray32Mode)",
+      "PlugInMaxSize": [
+        300000,
+        300000
+      ],
+      "MonitorScalingAware": true,
+      "FilterLayerSupport": true,
+      "FilterCaseInfo": [
+        {
+          "InputHandling": "InStraightData",
+          "OutputHandling": "OutStraightData",
+          "WriteOutsideSelection": false,
+          "FiltersLayerMasks": false,
+          "WorksWithBlankData": true,
+          "DontCopySourceToDestination": false
+        },
+        {
+          "InputHandling": "InStraightData",
+          "OutputHandling": "OutStraightData",
+          "WriteOutsideSelection": false,
+          "FiltersLayerMasks": false,
+          "WorksWithBlankData": true,
+          "DontCopySourceToDestination": false
+        },
+        {
+          "InputHandling": "InStraightData",
+          "OutputHandling": "OutStraightData",
+          "WriteOutsideSelection": false,
+          "FiltersLayerMasks": false,
+          "WorksWithBlankData": true,
+          "DontCopySourceToDestination": false
+        },
+        {
+          "InputHandling": "InStraightData",
+          "OutputHandling": "OutStraightData",
+          "WriteOutsideSelection": false,
+          "FiltersLayerMasks": false,
+          "WorksWithBlankData": true,
+          "DontCopySourceToDestination": false
+        },
+        {
+          "InputHandling": "InStraightData",
+          "OutputHandling": "OutStraightData",
+          "WriteOutsideSelection": false,
+          "FiltersLayerMasks": false,
+          "WorksWithBlankData": true,
+          "DontCopySourceToDestination": false
+        },
+        {
+          "InputHandling": "InStraightData",
+          "OutputHandling": "OutStraightData",
+          "WriteOutsideSelection": false,
+          "FiltersLayerMasks": false,
+          "WorksWithBlankData": true,
+          "DontCopySourceToDestination": false
+        },
+        {
+          "InputHandling": "InStraightData",
+          "OutputHandling": "OutStraightData",
+          "WriteOutsideSelection": false,
+          "FiltersLayerMasks": false,
+          "WorksWithBlankData": true,
+          "DontCopySourceToDestination": false
+        }
+      ],
+      "HasTerminology": {
+        "ClassID": "dsMe",
+        "EventID": "dsMe",
+        "ScopeString": "8f3b6c2e-5d1a-4e7b-9a40-3c6f2b1d7e95"
+      },
+      "Terminology": {
+        "MajorVersion": 1,
+        "MinorVersion": 0,
+        "Language": 0,
+        "ScriptCode": 0,
+        "Suites": [
+          {
+            "SuitName": "Distort Me",
+            "SuitID": "dsMe",
+            "SuitLevel": 1,
+            "SuitVersion": 1,
+            "SuitDescription": "Distort Me image-driven distortion",
+            "Events": [
+              {
+                "EventName": "Distort Me",
+                "EventDescription": "image-driven distortion",
+                "ClassID": "dsMe",
+                "EventType": "dsMe",
+                "ReplyType": "null",
+                "DirectParamType": "#ImR",
+                "DirectParamFlagBits": {
+                  "DirectParamOptional": true,
+                  "ListOfItems": false,
+                  "Enumerated": true,
+                  "ChangesState": true
+                },
+                "Parameters": [
+                  {
+                    "ParamName": "mode",
+                    "ParamKeyword": "dmMd",
+                    "ParamType": "long",
+                    "ParamDescription": "0 displacement, 1 refraction, 2 gradient flow"
+                  },
+                  {
+                    "ParamName": "strength",
+                    "ParamKeyword": "dmSt",
+                    "ParamType": "doub",
+                    "ParamDescription": "maximum shift in pixels"
+                  },
+                  {
+                    "ParamName": "map blur",
+                    "ParamKeyword": "dmBl",
+                    "ParamType": "doub",
+                    "ParamDescription": "blur radius applied to the map"
+                  },
+                  {
+                    "ParamName": "map fit",
+                    "ParamKeyword": "dmFt",
+                    "ParamType": "long",
+                    "ParamDescription": "0 stretch, 1 tile"
+                  },
+                  {
+                    "ParamName": "map scale",
+                    "ParamKeyword": "dmSc",
+                    "ParamType": "doub",
+                    "ParamDescription": "map scale when tiled"
+                  },
+                  {
+                    "ParamName": "map offset x",
+                    "ParamKeyword": "dmOx",
+                    "ParamType": "doub",
+                    "ParamDescription": "map offset in pixels"
+                  },
+                  {
+                    "ParamName": "map offset y",
+                    "ParamKeyword": "dmOy",
+                    "ParamType": "doub",
+                    "ParamDescription": "map offset in pixels"
+                  },
+                  {
+                    "ParamName": "map edges",
+                    "ParamKeyword": "dmME",
+                    "ParamType": "long",
+                    "ParamDescription": "0 clamp, 1 wrap, 2 mirror"
+                  },
+                  {
+                    "ParamName": "image edges",
+                    "ParamKeyword": "dmSE",
+                    "ParamType": "long",
+                    "ParamDescription": "0 clamp, 1 wrap, 2 mirror"
+                  },
+                  {
+                    "ParamName": "use brightness",
+                    "ParamKeyword": "dmLu",
+                    "ParamType": "bool",
+                    "ParamDescription": "displace along an angle by brightness"
+                  },
+                  {
+                    "ParamName": "angle",
+                    "ParamKeyword": "dmAn",
+                    "ParamType": "doub",
+                    "ParamDescription": "direction in degrees"
+                  },
+                  {
+                    "ParamName": "refraction index",
+                    "ParamKeyword": "dmIr",
+                    "ParamType": "doub",
+                    "ParamDescription": "index of refraction"
+                  },
+                  {
+                    "ParamName": "flow direction",
+                    "ParamKeyword": "dmFD",
+                    "ParamType": "long",
+                    "ParamDescription": "0 along contours, 1 uphill"
+                  },
+                  {
+                    "ParamName": "flow steps",
+                    "ParamKeyword": "dmFS",
+                    "ParamType": "long",
+                    "ParamDescription": "integration steps"
+                  },
+                  {
+                    "ParamName": "map path",
+                    "ParamKeyword": "dmMP",
+                    "ParamType": "TEXT",
+                    "ParamDescription": "map image file"
+                  }
+                ]
+              }
+            ],
+            "Enumerations": [],
+            "SuiteName": "Distort Me",
+            "SuiteID": "dsMe",
+            "SuiteLevel": 1,
+            "SuiteVersion": 1,
+            "SuiteDescription": "Distort Me image-driven distortion"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -17,15 +17,17 @@
 /* Images                                                              */
 /* ------------------------------------------------------------------ */
 
-dm_result dm_image_alloc(dm_image *img, int width, int height)
+dm_result dm_image_alloc(dm_image *img, int width, int height, int channels)
 {
-    if (!img || width <= 0 || height <= 0)
+    if (!img || width <= 0 || height <= 0 || channels <= 0 || channels > DM_MAX_CHANNELS)
         return DM_ERR_ARGUMENT;
-    img->data = (float *)calloc((size_t)width * height * 4, sizeof(float));
+    img->data = (float *)calloc((size_t)width * height * channels, sizeof(float));
     if (!img->data)
         return DM_ERR_MEMORY;
-    img->width  = width;
-    img->height = height;
+    img->width    = width;
+    img->height   = height;
+    img->channels = channels;
+    img->alpha    = -1;
     return DM_OK;
 }
 
@@ -34,9 +36,11 @@ void dm_image_free(dm_image *img)
     if (!img)
         return;
     free(img->data);
-    img->data   = NULL;
-    img->width  = 0;
-    img->height = 0;
+    img->data     = NULL;
+    img->width    = 0;
+    img->height   = 0;
+    img->channels = 0;
+    img->alpha    = -1;
 }
 
 const char *dm_mode_name(dm_mode mode)
@@ -117,10 +121,11 @@ static float plane_sample(const float *plane, int w, int h,
     return top + (bot - top) * ty;
 }
 
-/* Bilinear RGBA lookup in the source image. Interpolates with
- * premultiplied alpha so transparent pixels don't bleed dark fringes. */
+/* Bilinear lookup of all channels in the source image. With an alpha
+ * channel, colours are interpolated premultiplied so transparent pixels
+ * don't bleed dark fringes. */
 static void image_sample(const dm_image *img, float x, float y,
-                         dm_edge edge, float out[4])
+                         dm_edge edge, float *out)
 {
     /* pixel centres sit at +0.5 */
     x -= 0.5f;
@@ -133,21 +138,30 @@ static void image_sample(const dm_image *img, float x, float y,
     int y0 = edge_index((int)fy, img->height, edge);
     int y1 = edge_index((int)fy + 1, img->height, edge);
 
-    const float *p00 = img->data + ((size_t)y0 * img->width + x0) * 4;
-    const float *p10 = img->data + ((size_t)y0 * img->width + x1) * 4;
-    const float *p01 = img->data + ((size_t)y1 * img->width + x0) * 4;
-    const float *p11 = img->data + ((size_t)y1 * img->width + x1) * 4;
+    int n = img->channels, ai = img->alpha;
+    const float *p00 = img->data + ((size_t)y0 * img->width + x0) * n;
+    const float *p10 = img->data + ((size_t)y0 * img->width + x1) * n;
+    const float *p01 = img->data + ((size_t)y1 * img->width + x0) * n;
+    const float *p11 = img->data + ((size_t)y1 * img->width + x1) * n;
 
     float w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty);
     float w01 = (1 - tx) * ty,       w11 = tx * ty;
 
-    float a = p00[3] * w00 + p10[3] * w10 + p01[3] * w01 + p11[3] * w11;
-    for (int c = 0; c < 3; c++) {
-        float v = p00[c] * p00[3] * w00 + p10[c] * p10[3] * w10
-                + p01[c] * p01[3] * w01 + p11[c] * p11[3] * w11;
+    if (ai < 0) {
+        for (int c = 0; c < n; c++)
+            out[c] = p00[c] * w00 + p10[c] * w10 + p01[c] * w01 + p11[c] * w11;
+        return;
+    }
+
+    float a = p00[ai] * w00 + p10[ai] * w10 + p01[ai] * w01 + p11[ai] * w11;
+    for (int c = 0; c < n; c++) {
+        if (c == ai)
+            continue;
+        float v = p00[c] * p00[ai] * w00 + p10[c] * p10[ai] * w10
+                + p01[c] * p01[ai] * w01 + p11[c] * p11[ai] * w11;
         out[c] = a > 1e-6f ? v / a : 0.0f;
     }
-    out[3] = a;
+    out[ai] = a;
 }
 
 /* ------------------------------------------------------------------ */
@@ -233,13 +247,16 @@ static dm_result prepare_map(const dm_image *map, const dm_params *p,
         return DM_ERR_MEMORY;
     }
 
+    int ch = map->channels;
     for (size_t i = 0; i < n; i++) {
-        const float *px = map->data + i * 4;
-        /* transparent map pixels count as neutral grey */
-        float a = px[3];
-        float r = px[0] * a + 0.5f * (1 - a);
-        float g = px[1] * a + 0.5f * (1 - a);
-        float b = px[2] * a + 0.5f * (1 - a);
+        const float *px = map->data + i * ch;
+        /* 1-2 channels: grey (+ alpha), 3-4 channels: RGB (+ alpha).
+         * Transparent map pixels count as neutral grey. */
+        float r = px[0], g = ch >= 3 ? px[1] : px[0], b = ch >= 3 ? px[2] : px[0];
+        float a = ch == 2 ? px[1] : (ch >= 4 ? px[3] : 1.0f);
+        r = r * a + 0.5f * (1 - a);
+        g = g * a + 0.5f * (1 - a);
+        b = b * a + 0.5f * (1 - a);
         m->r[i]   = r;
         m->g[i]   = g;
         m->lum[i] = 0.2126f * r + 0.7152f * g + 0.0722f * b; /* Rec. 709 */
@@ -275,6 +292,7 @@ typedef struct job {
     const prepared_map *map;
     const dm_params   *p;
     dm_image          *dst;
+    int left, top;     /* position of dst inside src */
     float sx, sy;      /* map pixels per source pixel */
     float cos_a, sin_a;
 } job;
@@ -387,11 +405,11 @@ static void shade_flow(const job *j, float x, float y, float *ox, float *oy)
 static void run_rows(void *arg, int y_begin, int y_end)
 {
     const job *j = (const job *)arg;
-    int w = j->dst->width;
+    int w = j->dst->width, n = j->dst->channels;
 
     for (int y = y_begin; y < y_end; y++) {
         for (int x = 0; x < w; x++) {
-            float cx = x + 0.5f, cy = y + 0.5f, sx, sy;
+            float cx = x + j->left + 0.5f, cy = y + j->top + 0.5f, sx, sy;
             switch (j->p->mode) {
             case DM_MODE_REFRACT: shade_refract(j, cx, cy, &sx, &sy); break;
             case DM_MODE_FLOW:    shade_flow(j, cx, cy, &sx, &sy);    break;
@@ -399,7 +417,7 @@ static void run_rows(void *arg, int y_begin, int y_end)
             default:              shade_displace(j, cx, cy, &sx, &sy); break;
             }
             image_sample(j->src, sx, sy, j->p->src_edge,
-                         j->dst->data + ((size_t)y * w + x) * 4);
+                         j->dst->data + ((size_t)y * w + x) * n);
         }
     }
 }
@@ -411,11 +429,24 @@ static void run_rows(void *arg, int y_begin, int y_end)
 dm_result dm_apply(const dm_image *src, const dm_image *map,
                    const dm_params *p, dm_image *dst)
 {
+    if (!src || !dst || src->width != dst->width || src->height != dst->height)
+        return DM_ERR_ARGUMENT;
+    return dm_apply_rect(src, map, p, 0, 0, dst);
+}
+
+dm_result dm_apply_rect(const dm_image *src, const dm_image *map,
+                        const dm_params *p, int left, int top,
+                        dm_image *dst)
+{
     if (!src || !map || !p || !dst || !src->data || !map->data || !dst->data)
         return DM_ERR_ARGUMENT;
-    if (src->width != dst->width || src->height != dst->height || src == dst)
+    if (src == dst || src->data == dst->data || src->channels != dst->channels)
         return DM_ERR_ARGUMENT;
-    if (map->width <= 0 || map->height <= 0)
+    if (src->channels <= 0 || src->channels > DM_MAX_CHANNELS || src->alpha >= src->channels)
+        return DM_ERR_ARGUMENT;
+    if (left < 0 || top < 0 || left + dst->width > src->width || top + dst->height > src->height)
+        return DM_ERR_ARGUMENT;
+    if (map->width <= 0 || map->height <= 0 || map->channels <= 0)
         return DM_ERR_ARGUMENT;
 
     prepared_map m;
@@ -428,6 +459,8 @@ dm_result dm_apply(const dm_image *src, const dm_image *map,
     j.map = &m;
     j.p   = p;
     j.dst = dst;
+    j.left = left;
+    j.top  = top;
     if (p->map_fit == DM_FIT_TILE) {
         float s = p->map_scale > 1e-4f ? p->map_scale : 1e-4f;
         j.sx = j.sy = 1.0f / s;
