@@ -41,7 +41,7 @@ body {
 
 /* ---- header ---- */
 .head { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; }
-.title { width: 146px; height: 74px; }
+.title { width: 150px; height: auto; }
 .head-right { display: flex; flex-direction: column; align-items: flex-end; letter-spacing: 2px; }
 .head-right > * { margin-bottom: 10px; }
 .toggle { cursor: pointer; padding: 3px 6px; }

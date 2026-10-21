@@ -24,7 +24,7 @@ index.html          layout
 styles.css          look (Make Me Analog family style)
 main.js             Photoshop side: reading layers and maps, applying the filter
 js/distortme.js     JavaScript port of the core, used for the preview
-icons/title.svg     title lettering, Barlow Condensed ExtraBold (SIL OFL 1.1)
+icons/title.svg     logo: Big Shoulders Display Black, ME in shade blocks (tools/logo)
 ```
 
 The preview and the filter use the same algorithms, so the preview matches
