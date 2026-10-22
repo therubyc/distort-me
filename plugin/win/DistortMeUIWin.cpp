@@ -83,7 +83,8 @@ static void wide_to_utf8(const wchar_t *in, char *out, int cap)
 /* Dialog                                                              */
 /* ------------------------------------------------------------------ */
 
-static const wchar_t *const kModes[] = { L"Displacement", L"Refraction", L"Gradient Flow" };
+static const wchar_t *const kModes[] = { L"Displacement", L"Refraction", L"Gradient Flow",
+                                          L"RGB Split", L"Slice", L"Blocks" };
 static const wchar_t *const kFits[]  = { L"Stretch to image", L"Tile" };
 static const wchar_t *const kEdges[] = { L"Clamp", L"Wrap (tile)", L"Mirror" };
 static const wchar_t *const kFlow[]  = { L"Along contours", L"Uphill (to bright)" };
@@ -93,7 +94,7 @@ static void show_mode_controls(HWND dlg, const DMSettings *s)
     BOOL displace = s->core.mode == DM_MODE_DISPLACE;
     BOOL refract  = s->core.mode == DM_MODE_REFRACT;
     BOOL flow     = s->core.mode == DM_MODE_FLOW;
-    BOOL angle    = displace && s->core.use_luminance;
+    BOOL angle    = (displace && s->core.use_luminance) || s->core.mode == DM_MODE_SPLIT;
     BOOL tile     = s->core.map_fit == DM_FIT_TILE;
 
     EnableWindow(GetDlgItem(dlg, IDC_LUMA), displace);
@@ -122,7 +123,7 @@ static void to_dialog(HWND dlg, const DMSettings *s)
     set_float(dlg, IDC_BLUR, s->core.map_blur);
     combo_fill(dlg, IDC_MAPEDGE, kEdges, 3, (int)s->core.map_edge);
 
-    combo_fill(dlg, IDC_MODE, kModes, 3, (int)s->core.mode);
+    combo_fill(dlg, IDC_MODE, kModes, DM_MODE_COUNT, (int)s->core.mode);
     set_float(dlg, IDC_STRENGTH, s->core.strength);
     CheckDlgButton(dlg, IDC_LUMA, s->core.use_luminance ? BST_CHECKED : BST_UNCHECKED);
     set_float(dlg, IDC_ANGLE, s->core.angle);

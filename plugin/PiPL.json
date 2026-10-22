@@ -126,7 +126,7 @@
                     "ParamName": "mode",
                     "ParamKeyword": "dmMd",
                     "ParamType": "long",
-                    "ParamDescription": "0 displacement, 1 refraction, 2 gradient flow"
+                    "ParamDescription": "0 displacement, 1 refraction, 2 gradient flow, 3 rgb split, 4 slice, 5 blocks"
                   },
                   {
                     "ParamName": "strength",
@@ -205,6 +205,12 @@
                     "ParamKeyword": "dmFS",
                     "ParamType": "long",
                     "ParamDescription": "integration steps"
+                  },
+                  {
+                    "ParamName": "band height",
+                    "ParamKeyword": "dmCe",
+                    "ParamType": "doub",
+                    "ParamDescription": "slice band height in pixels"
                   },
                   {
                     "ParamName": "map path",

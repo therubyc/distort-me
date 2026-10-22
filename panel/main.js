@@ -27,7 +27,6 @@ const SRGB = 'sRGB IEC61966-2.1';
 const state = {
     p: DM.defaults(DM.MODE.DISPLACE),
     smart: true,
-    more: false,     /* advanced settings shown */
     src: null,      /* { img, half, scale, docId, layerId, name, docW, docH } */
     map: null,      /* { img, prepared, scale, name, path, w, h } */
     eventIndex: 0,
@@ -41,14 +40,15 @@ const state = {
 /* ---------------------------------------------------------------- */
 
 const SLIDERS = [
-    { key: 'strength', label: 'STRENGTH', min: 0, max: 300, step: 1, unit: 'PX' },
-    { key: 'mapBlur', label: 'SMOOTH MAP', min: 0, max: 20, step: 0.5, unit: 'PX', more: true },
-    { key: 'angle', label: 'ANGLE', min: 0, max: 360, step: 1, unit: '°', show: p => p.mode === 0 && p.useLuminance },
+    { key: 'strength', label: p => p.mode === 5 ? 'MAX BLOCK' : 'STRENGTH', min: 0, max: 300, step: 1, unit: 'PX', glitch: true },
+    { key: 'cell', label: 'BAND HEIGHT', min: 1, max: 200, step: 1, unit: 'PX', show: p => p.mode === 4 },
+    { key: 'mapBlur', label: 'SMOOTH MAP', min: 0, max: 20, step: 0.5, unit: 'PX' },
+    { key: 'angle', label: 'ANGLE', min: 0, max: 360, step: 1, unit: '°', show: p => (p.mode === 0 && p.useLuminance) || p.mode === 3 },
     { key: 'ior', label: 'GLASS (IOR)', min: 1, max: 2.5, step: 0.01, unit: '', show: p => p.mode === 1 },
     { key: 'flowSteps', label: 'FLOW STEPS', min: 4, max: 128, step: 1, unit: '', show: p => p.mode === 2 },
     { key: 'mapScale', label: 'MAP SCALE', min: 0.1, max: 4, step: 0.05, unit: '×', show: p => p.mapFit === 1 },
-    { key: 'mapOffsetX', label: 'MAP OFFSET X', min: -1000, max: 1000, step: 1, unit: 'PX', more: true },
-    { key: 'mapOffsetY', label: 'MAP OFFSET Y', min: -1000, max: 1000, step: 1, unit: 'PX', more: true }
+    { key: 'mapOffsetX', label: 'MAP OFFSET X', min: -1000, max: 1000, step: 1, unit: 'PX' },
+    { key: 'mapOffsetY', label: 'MAP OFFSET Y', min: -1000, max: 1000, step: 1, unit: 'PX' }
 ];
 function fmt(v, step) {
     return step < 1 ? v.toFixed(step < 0.1 ? 2 : 1) : String(Math.round(v));
@@ -62,8 +62,8 @@ function buildSliders() {
         el.className = 'slider';
         el.innerHTML = '<div class="top"><span class="name"></span><span class="val"></span></div>' +
                        '<div class="bar"></div>';
-        el.querySelector('.name').textContent = s.label;
         s.el = el;
+        s.name = el.querySelector('.name');
         s.bar = el.querySelector('.bar');
         s.val = el.querySelector('.val');
 
@@ -120,7 +120,59 @@ function updateSlider(s) {
     s.fill.style.width = pct + '%';
     s.fill.style.display = pct > 0 ? 'block' : 'none';
     s.val.textContent = fmt(v, s.step) + s.unit;
-    s.el.classList.toggle('hidden', (!!s.show && !s.show(state.p)) || (!!s.more && !state.more));
+    s.name.textContent = typeof s.label === 'function' ? s.label(state.p) : s.label;
+    s.el.classList.toggle('hidden', !!s.show && !s.show(state.p));
+    if (s.glitch)
+        glitchBar(s, pct);
+}
+
+/* A few broken fragments around the end of the bar: notches in the fill,
+ * stray blocks after it and a cyan/magenta misregistration. They are
+ * seeded by the value, so they jump around while the slider moves. */
+const GLITCH_COLORS = { fill: '#c6ff3d', notch: '#1b1b1b', cyan: '#2ee6ff', magenta: '#ff3dc8' };
+function glitchBar(s, pct) {
+    if (!s.gl) {
+        s.gl = document.createElement('div');
+        s.bar.appendChild(s.gl);
+    }
+    s.gl.innerHTML = '';
+    const W = s.bar.getBoundingClientRect().width;
+    if (!W || pct <= 0)
+        return;
+    const end = W * pct / 100;
+    let seed = (Math.round(pct * 10) * 2654435761) >>> 0;
+    const rnd = () => {
+        seed ^= seed << 13; seed >>>= 0;
+        seed ^= seed >>> 17;
+        seed ^= seed << 5; seed >>>= 0;
+        return seed / 4294967296;
+    };
+    const frag = (x, w, color, dy, h) => {
+        x = Math.max(0, Math.min(W - 1, x));
+        w = Math.max(1, Math.min(W - x, w));
+        const d = document.createElement('div');
+        d.className = 'gl';
+        d.style.left = Math.round(x) + 'px';
+        d.style.width = Math.round(w) + 'px';
+        d.style.backgroundColor = color;
+        if (dy) d.style.top = (3 + dy) + 'px';
+        if (h) d.style.height = h + 'px';
+        s.gl.appendChild(d);
+    };
+    /* misregistration behind the end */
+    frag(end - 3, 5, GLITCH_COLORS.cyan, -2, 0);
+    frag(end + 1, 3, GLITCH_COLORS.magenta, 2, 0);
+    /* notches cut into the fill */
+    for (let i = 0; i < 2; i++)
+        if (end > 30) frag(end - 6 - rnd() * 40, 1 + rnd() * 3, GLITCH_COLORS.notch, 0, 0);
+    /* stray pieces after the end, thinner the further out */
+    let x = end + 4;
+    for (let i = 0; i < 3 && x < W; i++) {
+        x += rnd() * 10;
+        const h = Math.round(11 - i * 3 - rnd() * 2);
+        frag(x, 2 + rnd() * 6, GLITCH_COLORS.fill, Math.round((11 - h) * rnd()), h);
+        x += 6;
+    }
 }
 
 /* Segmented switches: data-key names the parameter. */
@@ -136,8 +188,6 @@ function syncSegments() {
     const smart = document.getElementById('smartToggle');
     smart.textContent = (state.smart ? '[x]' : '[ ]') + ' SMART';
     smart.classList.toggle('on', state.smart);
-    document.querySelectorAll('.more').forEach(e => e.classList.toggle('hidden', !state.more));
-    document.getElementById('moreToggle').textContent = state.more ? '[-] FEWER OPTIONS' : '[+] MORE OPTIONS';
 }
 
 function bindSegments() {
@@ -151,6 +201,7 @@ function bindSegments() {
                 state.p.mode = v;
                 state.p.strength = d.strength;
                 state.p.mapBlur = d.mapBlur;
+                state.p.cell = d.cell;
             } else if (key === 'useLuminance') {
                 state.p.useLuminance = !!v;
             } else {
@@ -307,6 +358,24 @@ function fitInBox(target, W, H) {
     target.style.top = Math.round((box.height - h) / 2) + 'px';
 }
 
+/* The preview box grows with the panel. UXP's resize event is unreliable,
+ * so check its size now and then and re-fit the image when it changed. */
+function watchPreviewSize() {
+    const box = document.getElementById('previewBox');
+    const img = document.getElementById('preview');
+    let last = '';
+    setInterval(() => {
+        const r = box.getBoundingClientRect();
+        const key = Math.round(r.width) + 'x' + Math.round(r.height);
+        if (key === last)
+            return;
+        last = key;
+        if (img.dataset.w)
+            fitInBox(img, +img.dataset.w, +img.dataset.h);
+        SLIDERS.forEach(s => { if (s.glitch && s.fill) updateSlider(s); });
+    }, 400);
+}
+
 /* Float RGBA -> 8-bit RGB over a dark checkerboard, then JPEG for <img>. */
 async function showImage(img, target) {
     const W = img.width, H = img.height;
@@ -327,6 +396,8 @@ async function showImage(img, target) {
     try {
         const jpeg = await imaging.encodeImageData({ imageData: id, base64: true });
         target.src = 'data:image/jpeg;base64,' + jpeg;
+        target.dataset.w = W;
+        target.dataset.h = H;
         fitInBox(target, W, H);
     } finally {
         id.dispose();
@@ -495,8 +566,11 @@ function setMap(r, name, path, info) {
 
 async function pickMapFile() {
     const file = await fs.getFileForOpening({ types: storage.fileTypes.images.concat(['tif', 'tiff', 'ppm', 'pgm']) });
-    if (!file)
-        return;
+    if (file)
+        await loadMapFile(file, file.name, extOf(file.name).toUpperCase());
+}
+
+async function loadMapFile(file, name, info) {
     log('reading map');
     const prev = app.activeDocument;
     try {
@@ -514,11 +588,59 @@ async function pickMapFile() {
                     app.activeDocument = prev;
             }
         }, { commandName: 'Distort Me: read map' });
-        setMap(r, file.name, path, extOf(file.name).toUpperCase());
+        setMap(r, name, path, info);
         log('map loaded');
     } catch (e) {
         log('can\'t read map: ' + (e.message || e), true);
     }
+}
+
+/* The built-in library: panel/maps, listed in maps/index.json. */
+async function toggleLibrary() {
+    const box = document.getElementById('libPick');
+    if (!box.classList.contains('hidden')) {
+        box.classList.add('hidden');
+        return;
+    }
+    document.getElementById('layerPick').classList.add('hidden');
+    if (!box.firstChild) {
+        try {
+            const folder = await fs.getPluginFolder();
+            const index = JSON.parse(await (await folder.getEntry('maps/index.json')).read());
+            let row = null;
+            index.maps.forEach((m, i) => {
+                if (i % 4 === 0) {
+                    row = document.createElement('div');
+                    row.className = 'lrow';
+                    box.appendChild(row);
+                }
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.info = m.name + ': ' + m.info + '. 2048×2048, tiles seamlessly, CC0.';
+                const img = document.createElement('img');
+                img.src = 'maps/thumbs/' + m.file;
+                const label = document.createElement('div');
+                label.className = 'lname';
+                label.textContent = m.name.toUpperCase();
+                cell.appendChild(img);
+                cell.appendChild(label);
+                cell.addEventListener('click', async () => {
+                    box.classList.add('hidden');
+                    try {
+                        const file = await folder.getEntry('maps/' + m.file);
+                        await loadMapFile(file, m.name, 'LIBRARY');
+                    } catch (e) {
+                        log('map missing: ' + m.file, true);
+                    }
+                });
+                row.appendChild(cell);
+            });
+        } catch (e) {
+            log('no map library found', true);
+            return;
+        }
+    }
+    box.classList.remove('hidden');
 }
 
 function allLayers(layers, out, depth) {
@@ -541,6 +663,7 @@ function toggleLayerPicker() {
         log('open a document first', true);
         return;
     }
+    document.getElementById('libPick').classList.add('hidden');
     box.innerHTML = '';
     allLayers(doc.layers, [], 0).forEach(({ layer, depth }) => {
         const it = document.createElement('div');
@@ -592,6 +715,7 @@ function filterDescriptor(eventKey) {
         $dmIr: p.ior,
         $dmFD: p.flowDir,
         $dmFS: p.flowSteps,
+        $dmCe: p.cell,
         /* the plug-in reads the path percent-encoded */
         $dmMP: encodeURIComponent(state.map.path),
         _options: { dialogOptions: 'dontDisplay' }
@@ -670,10 +794,8 @@ function init() {
     document.getElementById('mapLayer').addEventListener('click', toggleLayerPicker);
     document.getElementById('apply').addEventListener('click', apply);
     document.getElementById('reset').addEventListener('click', reset);
-    document.getElementById('moreToggle').addEventListener('click', () => {
-        state.more = !state.more;
-        syncSegments();
-    });
+    document.getElementById('mapLib').addEventListener('click', toggleLibrary);
+    watchPreviewSize();
     document.getElementById('smartToggle').addEventListener('click', () => {
         state.smart = !state.smart;
         syncSegments();

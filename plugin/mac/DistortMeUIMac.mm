@@ -54,7 +54,8 @@ bool DMShowDialog(void *parentWindow, DMSettings *s)
         browse.frame = NSMakeRect(288, 66, 92, 28);
 
         NSPopUpButton *mode = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(100, 34, 180, 26) pullsDown:NO];
-        [mode addItemsWithTitles:@[ @"Displacement", @"Refraction", @"Gradient Flow" ]];
+        [mode addItemsWithTitles:@[ @"Displacement", @"Refraction", @"Gradient Flow",
+                                     @"RGB Split", @"Slice", @"Blocks" ]];
         [mode selectItemAtIndex:(NSInteger)s->core.mode];
 
         NSTextField *strength = [[NSTextField alloc] initWithFrame:NSMakeRect(100, 2, 80, 24)];

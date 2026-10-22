@@ -1,0 +1,75 @@
+{
+ "license": "CC0-1.0",
+ "maps": [
+  {
+   "file": "marble.png",
+   "name": "Marble",
+   "info": "Veined stone, soft gradients"
+  },
+  {
+   "file": "liquid.png",
+   "name": "Liquid",
+   "info": "Domain-warped swirls, like oil on water"
+  },
+  {
+   "file": "caustics.png",
+   "name": "Caustics",
+   "info": "Light webs from a pool floor"
+  },
+  {
+   "file": "ripples.png",
+   "name": "Ripples",
+   "info": "Interfering water waves"
+  },
+  {
+   "file": "reeded_glass.png",
+   "name": "Reeded glass",
+   "info": "Vertical flutes, made for REFRACT"
+  },
+  {
+   "file": "frosted_glass.png",
+   "name": "Frosted glass",
+   "info": "Fine grain for a soft smear"
+  },
+  {
+   "file": "crumpled_paper.png",
+   "name": "Crumpled paper",
+   "info": "Facets and creases"
+  },
+  {
+   "file": "woven_fabric.png",
+   "name": "Woven fabric",
+   "info": "Twill weave, 96 threads"
+  },
+  {
+   "file": "wood.png",
+   "name": "Wood",
+   "info": "Growth rings and fibres"
+  },
+  {
+   "file": "brushed_metal.png",
+   "name": "Brushed metal",
+   "info": "Long horizontal streaks"
+  },
+  {
+   "file": "hammered_metal.png",
+   "name": "Hammered metal",
+   "info": "Dents of two sizes"
+  },
+  {
+   "file": "cracked_earth.png",
+   "name": "Cracked earth",
+   "info": "Dried mud, cells and cracks"
+  },
+  {
+   "file": "clouds.png",
+   "name": "Clouds",
+   "info": "Plain fractal noise"
+  },
+  {
+   "file": "vhs_bands.png",
+   "name": "VHS bands",
+   "info": "Tracking errors, made for SLICE"
+  }
+ ]
+}

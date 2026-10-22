@@ -10,7 +10,7 @@
   <div class="head">
     <img class="title" src="icons/title.svg" alt="Distort Me">
     <div class="head-right">
-      <div class="dim">v0.2</div>
+      <div class="dim">v0.3</div>
       <div class="toggle" id="smartToggle" data-info="Apply as a Smart Filter, so you can change it later. Converts the layer to a Smart Object if needed.">[x] SMART</div>
     </div>
   </div>
@@ -41,6 +41,7 @@
         <div class="row">
           <div class="box" id="mapFile" data-info="Choose an image file as the map. Any format Photoshop opens.">FILE…</div>
           <div class="box" id="mapLayer" data-info="Use another layer of this document as the map.">LAYER…</div>
+          <div class="box" id="mapLib" data-info="Built-in maps: seamless 2K textures, free to use (CC0).">LIBRARY…</div>
         </div>
         <div class="seg" data-key="mapFit">
           <div class="opt" data-v="0" data-info="The map is stretched over the whole image.">STRETCH</div>
@@ -50,6 +51,7 @@
     </div>
     <div class="dim small" id="mapInfo"></div>
     <div id="layerPick" class="picker hidden"></div>
+    <div id="libPick" class="library hidden"></div>
   </div>
 
   <div class="section">
@@ -58,6 +60,11 @@
       <div class="opt" data-v="0" data-info="Red moves pixels sideways, green moves them up and down. 50% grey does nothing.">DISPLACE</div>
       <div class="opt" data-v="1" data-info="The map is a sheet of glass. Brightness is its thickness.">REFRACT</div>
       <div class="opt" data-v="2" data-info="Pixels drift along the lines of the map, like ink in water.">FLOW</div>
+    </div>
+    <div class="seg seg-next" data-key="mode">
+      <div class="opt" data-v="3" data-info="Red, green and blue drift apart along the angle. Bright areas split the most.">RGB SPLIT</div>
+      <div class="opt" data-v="4" data-info="The image is cut into bands that slide sideways. 50% grey does nothing.">SLICE</div>
+      <div class="opt" data-v="5" data-info="Bright areas break into pixel blocks. Strength is the largest block.">BLOCKS</div>
     </div>
   </div>
 
@@ -74,9 +81,7 @@
     </div>
   </div>
 
-  <div class="ghost more-toggle" id="moreToggle" data-info="Show or hide smoothing, map offset and edge handling.">[+] MORE OPTIONS</div>
-
-  <div class="section more">
+  <div class="section">
     <div class="sec-head"><span class="num">04</span><span class="name">EDGES</span><span class="fill">//////////////////////////////////////////////////</span></div>
     <div class="seg" data-key="srcEdge">
       <div class="opt" data-v="0" data-info="Pixels from outside the image repeat the border.">CLAMP</div>

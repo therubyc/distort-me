@@ -24,7 +24,8 @@ static void usage(void)
         "\n"
         "usage: distortme <input> <map> <output.png> [options]\n"
         "\n"
-        "  --mode displace|refract|flow   effect (default displace)\n"
+        "  --mode displace|refract|flow|split|slice|blocks\n"
+        "                                 effect (default displace)\n"
         "  --strength N                   max shift in pixels\n"
         "  --blur N                       blur the map first (map pixels)\n"
         "  --fit stretch|tile             how the map covers the image\n"
@@ -33,10 +34,11 @@ static void usage(void)
         "  --map-edge clamp|wrap|mirror   map tiling (default wrap)\n"
         "  --edge clamp|wrap|mirror       source edges (default clamp)\n"
         "  --luminance                    displace: brightness pushes along --angle\n"
-        "  --angle DEG                    direction for --luminance\n"
+        "  --angle DEG                    direction for --luminance and split\n"
         "  --ior N                        refract: index of refraction (1.5)\n"
         "  --uphill                       flow: move towards bright areas\n"
         "  --steps N                      flow: integration steps (32)\n"
+        "  --cell N                       slice: band height in pixels (12)\n"
         "  --threads N                    worker threads (0 = all cores)\n",
         DM_VERSION_MAJOR, DM_VERSION_MINOR, DM_VERSION_PATCH);
 }
@@ -111,6 +113,9 @@ int main(int argc, char **argv)
             if (!strcmp(m, "displace"))     mode = DM_MODE_DISPLACE;
             else if (!strcmp(m, "refract")) mode = DM_MODE_REFRACT;
             else if (!strcmp(m, "flow"))    mode = DM_MODE_FLOW;
+            else if (!strcmp(m, "split"))   mode = DM_MODE_SPLIT;
+            else if (!strcmp(m, "slice"))   mode = DM_MODE_SLICE;
+            else if (!strcmp(m, "blocks"))  mode = DM_MODE_BLOCKS;
             else {
                 fprintf(stderr, "unknown mode: %s\n", m);
                 return 1;
@@ -132,6 +137,7 @@ int main(int argc, char **argv)
         else if (!strcmp(a, "--angle") && more >= 1)    p.angle = (float)atof(argv[++i]);
         else if (!strcmp(a, "--ior") && more >= 1)      p.ior = (float)atof(argv[++i]);
         else if (!strcmp(a, "--steps") && more >= 1)    p.flow_steps = atoi(argv[++i]);
+        else if (!strcmp(a, "--cell") && more >= 1)     p.cell = (float)atof(argv[++i]);
         else if (!strcmp(a, "--threads") && more >= 1)  p.threads = atoi(argv[++i]);
         else if (!strcmp(a, "--luminance"))             p.use_luminance = 1;
         else if (!strcmp(a, "--uphill"))                p.flow_dir = DM_FLOW_UPHILL;

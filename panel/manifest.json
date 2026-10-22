@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.therubyc.distortme",
   "name": "Distort Me",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main": "index.html",
   "host": {
     "app": "PS",
@@ -15,8 +15,8 @@
       "label": { "default": "Distort Me" },
       "minimumSize": { "width": 300, "height": 520 },
       "maximumSize": { "width": 1200, "height": 2000 },
-      "preferredDockedSize": { "width": 340, "height": 760 },
-      "preferredFloatingSize": { "width": 360, "height": 820 },
+      "preferredDockedSize": { "width": 340, "height": 980 },
+      "preferredFloatingSize": { "width": 360, "height": 980 },
       "icons": [
         { "width": 23, "height": 23, "path": "icons/panel.png", "scale": [1, 2], "theme": ["all"], "species": ["chrome"] }
       ]

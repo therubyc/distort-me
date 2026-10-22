@@ -110,7 +110,7 @@ bool DMReadDescriptor(FilterRecord *fr, DMSettings *s, bool *showDialog)
     while (rp->getKeyProc(token, &key, &type, &flags)) {
         switch (key) {
         case DM_KEY_MODE:
-            if (read_int(rp, token, type, &i32) && i32 >= 0 && i32 <= 2)
+            if (read_int(rp, token, type, &i32) && i32 >= 0 && i32 < DM_MODE_COUNT)
                 DMSettingsSetMode(&in, (dm_mode)i32);
             break;
         case DM_KEY_STRENGTH:
@@ -151,6 +151,9 @@ bool DMReadDescriptor(FilterRecord *fr, DMSettings *s, bool *showDialog)
             break;
         case DM_KEY_FLOW_STEPS:
             if (read_int(rp, token, type, &i32) && i32 > 0 && i32 <= 1024) in.core.flow_steps = i32;
+            break;
+        case DM_KEY_CELL:
+            if (read_real(rp, token, type, &f64) && f64 >= 1.0) in.core.cell = (float)f64;
             break;
         case DM_KEY_MAP_PATH:
             if (!rp->getTextProc(token, &text) && text) {
@@ -203,6 +206,7 @@ OSErr DMWriteDescriptor(FilterRecord *fr, const DMSettings *s)
     f = c->ior;          wp->putFloatProc(token, DM_KEY_IOR, &f);
     wp->putIntegerProc(token, DM_KEY_FLOW_DIR, (int32)c->flow_dir);
     wp->putIntegerProc(token, DM_KEY_FLOW_STEPS, (int32)c->flow_steps);
+    f = c->cell;         wp->putFloatProc(token, DM_KEY_CELL, &f);
 
     char encoded[DM_PATH_MAX * 3];
     size_t len = encode_path(s->mapPath, encoded, sizeof(encoded));

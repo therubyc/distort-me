@@ -13,7 +13,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    var MODE = { DISPLACE: 0, REFRACT: 1, FLOW: 2 };
+    var MODE = { DISPLACE: 0, REFRACT: 1, FLOW: 2, SPLIT: 3, SLICE: 4, BLOCKS: 5 };
     var EDGE = { CLAMP: 0, WRAP: 1, MIRROR: 2 };
     var FIT = { STRETCH: 0, TILE: 1 };
     var FLOW = { ALONG_CONTOURS: 0, UPHILL: 1 };
@@ -29,10 +29,13 @@
             mode: mode || MODE.DISPLACE, strength: 20, mapFit: FIT.STRETCH, mapScale: 1,
             mapOffsetX: 0, mapOffsetY: 0, mapEdge: EDGE.WRAP, mapBlur: 0,
             srcEdge: EDGE.CLAMP, useLuminance: false, angle: 0, ior: 1.5,
-            flowDir: FLOW.ALONG_CONTOURS, flowSteps: 32
+            flowDir: FLOW.ALONG_CONTOURS, flowSteps: 32, cell: 12
         };
         if (p.mode === MODE.REFRACT) { p.strength = 40; p.mapBlur = 1; }
         else if (p.mode === MODE.FLOW) { p.strength = 30; p.mapBlur = 2; }
+        else if (p.mode === MODE.SPLIT) p.strength = 12;
+        else if (p.mode === MODE.SLICE) p.strength = 40;
+        else if (p.mode === MODE.BLOCKS) p.strength = 32;
         return p;
     }
 
@@ -43,6 +46,7 @@
         if (mapS === undefined) mapS = s;
         var q = Object.assign({}, p);
         q.strength = p.strength * s;
+        q.cell = p.cell * s;
         q.mapOffsetX = p.mapOffsetX * s;
         q.mapOffsetY = p.mapOffsetY * s;
         q.mapBlur = p.mapBlur * mapS;
@@ -200,8 +204,25 @@
             if (uphill) { res[0] = gx / len * fade; res[1] = gy / len * fade; }
             else { res[0] = -gy / len * fade; res[1] = gx / len * fade; }
         }
+        function lumAt(x, y) {
+            return planeSample(m.lum, mw, mh, (x - ox) * sx - 0.5, (y - oy) * sy - 0.5, me);
+        }
+        var cell = Math.max(p.cell, 1);
         function shade(x, y) {
             var u, v;
+            if (p.mode === MODE.SLICE) {
+                var yb = (Math.floor(y / cell) + 0.5) * cell;
+                res[0] = x + (lumAt(x, yb) - 0.5) * 2 * strength;
+                res[1] = y;
+                return;
+            }
+            if (p.mode === MODE.BLOCKS) {
+                var size = Math.floor(lumAt(x, y) * strength + 0.5);
+                if (size <= 1) { res[0] = x; res[1] = y; return; }
+                res[0] = (Math.floor(x / size) + 0.5) * size;
+                res[1] = (Math.floor(y / size) + 0.5) * size;
+                return;
+            }
             if (p.mode === MODE.REFRACT) {
                 grad(x, y);
                 var ssx = res[0] * strength, ssy = res[1] * strength;
@@ -237,8 +258,27 @@
         }
 
         var W = dst.width, n = dst.channels;
+        var ai = src.alpha, colours = ai >= 0 ? n - 1 : n, tmp = new Float32Array(n);
+        /* colour channels at different offsets along the angle: first
+         * forwards, last backwards (alpha keeps the widest coverage) */
+        function split(x, y, o) {
+            var amount = lumAt(x, y) * strength, alpha = 0, k = 0;
+            for (var c = 0; c < n; c++) {
+                if (c === ai) continue;
+                var t = colours > 1 ? 1 - 2 * k / (colours - 1) : 0;
+                imageSample(src, x + t * amount * cosA, y + t * amount * sinA, p.srcEdge, tmp, 0);
+                dst.data[o + c] = tmp[c];
+                if (ai >= 0 && tmp[ai] > alpha) alpha = tmp[ai];
+                k++;
+            }
+            if (ai >= 0) dst.data[o + ai] = alpha;
+        }
         for (var y = 0; y < dst.height; y++) {
             for (var x = 0; x < W; x++) {
+                if (p.mode === MODE.SPLIT) {
+                    split(x + left + 0.5, y + top + 0.5, (y * W + x) * n);
+                    continue;
+                }
                 shade(x + left + 0.5, y + top + 0.5);
                 imageSample(src, res[0], res[1], p.srcEdge, dst.data, (y * W + x) * n);
             }

@@ -1,0 +1,6 @@
+The maps in this folder were generated from scratch by tools/maps/make_maps.py
+for Distort Me. No photos or third-party images were used.
+
+They are dedicated to the public domain under CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/
+Use them for anything, commercial or not, without credit.

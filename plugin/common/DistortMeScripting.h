@@ -28,6 +28,7 @@
 #define DM_KEY_FLOW_DIR    'dmFD'
 #define DM_KEY_FLOW_STEPS  'dmFS'
 #define DM_KEY_MAP_PATH    'dmMP'
+#define DM_KEY_CELL        'dmCe'
 
 /* Fill `s` from the descriptor Photoshop handed us, if any. Sets
  * *showDialog to whether the user (or the action) wants the dialog.

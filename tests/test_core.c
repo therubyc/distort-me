@@ -153,7 +153,7 @@ static void test_rect_matches_full(void)
     dm_image_alloc(&full, 120, 90, 4);
     dm_image_alloc(&part, 50, 30, 4);
 
-    for (int m = 0; m <= 2; m++) {
+    for (int m = 0; m < DM_MODE_COUNT; m++) {
         dm_params p;
         dm_params_default(&p, (dm_mode)m);
         dm_apply(&src, &map, &p, &full);
@@ -200,8 +200,42 @@ static void test_single_channel(void)
     dm_image_free(&dst);
 }
 
+/* The new modes leave the image alone where their map says "nothing":
+ * black for split and blocks, 50% grey for slice. */
+static void test_glitch_modes_neutral(void)
+{
+    dm_image src, black, grey, dst;
+    make_ramp(&src, 64, 48);
+    fill(&black, 5, 5, 0.0f, 0.0f, 0.0f);
+    fill(&grey, 5, 5, 0.5f, 0.5f, 0.5f);
+    dm_image_alloc(&dst, 64, 48, 4);
+
+    dm_params p;
+    dm_params_default(&p, DM_MODE_SPLIT);
+    CHECK(dm_apply(&src, &black, &p, &dst) == DM_OK && max_diff(&src, &dst) < 1e-5f, "split: black = identity");
+    dm_params_default(&p, DM_MODE_BLOCKS);
+    CHECK(dm_apply(&src, &black, &p, &dst) == DM_OK && max_diff(&src, &dst) < 1e-5f, "blocks: black = identity");
+    dm_params_default(&p, DM_MODE_SLICE);
+    CHECK(dm_apply(&src, &grey, &p, &dst) == DM_OK && max_diff(&src, &dst) < 1e-5f, "slice: grey = identity");
+
+    /* split with a white map: red comes from +strength, blue from -strength */
+    fill(&grey, 5, 5, 1.0f, 1.0f, 1.0f);
+    dm_params_default(&p, DM_MODE_SPLIT);
+    p.strength = 4.0f;
+    dm_apply(&src, &grey, &p, &dst);
+    float r = dst.data[(10 * 64 + 20) * 4 + 0], g = dst.data[(10 * 64 + 20) * 4 + 1];
+    CHECK(fabsf(r - 24.0f / 63.0f) < 1e-4f, "split moves red");
+    CHECK(fabsf(g - src.data[(10 * 64 + 20) * 4 + 1]) < 1e-4f, "split keeps green");
+
+    dm_image_free(&src);
+    dm_image_free(&black);
+    dm_image_free(&grey);
+    dm_image_free(&dst);
+}
+
 int main(void)
 {
+    test_glitch_modes_neutral();
     test_rect_matches_full();
     test_single_channel();
     test_flat_map_is_identity();

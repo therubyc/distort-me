@@ -36,8 +36,13 @@ typedef struct dm_image {
 typedef enum dm_mode {
     DM_MODE_DISPLACE = 0, /* red/green of the map shift x/y               */
     DM_MODE_REFRACT  = 1, /* map is a height field, light bends through it */
-    DM_MODE_FLOW     = 2  /* pixels travel along the map's gradient lines  */
+    DM_MODE_FLOW     = 2, /* pixels travel along the map's gradient lines  */
+    DM_MODE_SPLIT    = 3, /* brightness pulls the colour channels apart    */
+    DM_MODE_SLICE    = 4, /* horizontal bands slide sideways (VHS glitch)  */
+    DM_MODE_BLOCKS   = 5  /* brightness sets the size of mosaic blocks     */
 } dm_mode;
+
+#define DM_MODE_COUNT 6
 
 /* What happens when a lookup falls outside the source image. */
 typedef enum dm_edge {
@@ -82,6 +87,12 @@ typedef struct dm_params {
     /* DM_MODE_FLOW */
     dm_flow_dir flow_dir;
     int         flow_steps;   /* integration steps, more = smoother         */
+
+    /* DM_MODE_SLICE */
+    float       cell;         /* height of one band in source pixels        */
+
+    /* DM_MODE_SPLIT also uses `angle` for the direction of the split,
+     * DM_MODE_BLOCKS uses `strength` as the largest block size.        */
 
     int         threads;      /* 0 = use all cores                          */
 } dm_params;

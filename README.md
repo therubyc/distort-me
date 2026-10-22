@@ -17,6 +17,17 @@ Every effect in Distort Me is steered by an image, a "map". A scan of crumpled p
 | `displace` | Red shifts pixels left/right, green shifts them up/down. 50 % grey means no shift, like Photoshop's Displace filter. With `--luminance`, brightness pushes along `--angle`. |
 | `refract` | The map is a sheet of glass whose thickness follows its brightness. Light bends through it (Snell's law, `--ior`). |
 | `flow` | Pixels travel along the map's lines of equal brightness (or uphill with `--uphill`), which smears the image like ink in water. |
+| `split` | Red, green and blue drift apart along `--angle`. Bright areas split the most, black does nothing. |
+| `slice` | The image is cut into horizontal bands `--cell` pixels high. The map's brightness at each band's centre slides it left or right; 50 % grey does nothing. |
+| `blocks` | Bright areas break into square pixel blocks, up to `--strength` pixels wide. Black does nothing. |
+
+## Map library
+
+The panel comes with 14 maps to start with: marble, liquid, caustics, ripples, reeded and frosted glass, crumpled paper, woven fabric, wood, brushed and hammered metal, cracked earth, clouds and VHS bands. They are 2048 × 2048, tile seamlessly and are generated from scratch by `tools/maps/make_maps.py` (no photos), so they are released under CC0: use them for anything. Run the script once after cloning; only the thumbnails are checked in.
+
+```sh
+python3 tools/maps/make_maps.py      # writes panel/maps/*.png (needs numpy and Pillow)
+```
 
 ## Install (Windows)
 
@@ -68,13 +79,14 @@ Run `distortme` without arguments to list all options.
 
 ```
 include/distortme.h   public API of the core (plain C99)
-src/                  core: map preparation, the three modes, threading
+src/                  core: map preparation, the six modes, threading
 cli/                  command-line test tool (uses stb_image)
 plugin/common/        Photoshop filter: protocol, settings, actions, map loading
 plugin/win/           Windows dialog and resources
 plugin/mac/           macOS dialog (not built yet)
 plugin/PiPL.json      plug-in description Photoshop reads (Windows and macOS)
 panel/                Photoshop panel (UXP) with live preview, see panel/README.md
+tools/maps/           generator of the built-in map library (CC0)
 tests/                core tests (ctest), JS port tests and the fake Photoshop host
 samples/              test image and maps
 third_party/stb/      stb_image and stb_image_write (public domain / MIT)
@@ -88,4 +100,4 @@ The plug-in needs Adobe's Photoshop Plug-In SDK, which you download yourself fro
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Third-party parts and, later, bundled maps are listed in [CREDITS.md](CREDITS.md).
+MIT, see [LICENSE](LICENSE). Third-party parts are listed in [CREDITS.md](CREDITS.md). The built-in maps in `panel/maps` are CC0 1.0.

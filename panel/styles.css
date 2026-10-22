@@ -6,7 +6,9 @@
  * OFL) so it looks the same everywhere; the text uses the system's
  * monospace font. */
 
+html { height: 100%; }
 body {
+  height: 100%;
   margin: 0;
   padding: 0;
   background-color: #1b1b1b;
@@ -16,9 +18,12 @@ body {
   overflow-y: auto; /* the panel scrolls when it is shorter than its content */
 }
 
+/* At least as tall as the panel: the preview takes the spare height. */
 #app {
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  min-height: 100%;
   padding: 14px 16px 12px 16px;
 }
 
@@ -53,10 +58,9 @@ body {
 .tab.on { background-color: #e8e6e1; color: #1b1b1b; }
 .ghost { cursor: pointer; letter-spacing: 1px; }
 .ghost:hover { color: #ffffff; }
-.more-toggle { margin-top: 4px; color: #8a8884; letter-spacing: 2px; }
 
 /* ---- preview ---- */
-.preview { position: relative; height: 200px; background-color: #222222; overflow: hidden; }
+.preview { position: relative; flex: 1 1 auto; height: 200px; min-height: 200px; background-color: #222222; overflow: hidden; }
 .preview #preview { position: absolute; left: 0; top: 0; }
 .badge { position: absolute; left: 0; top: 0; padding: 2px 6px; letter-spacing: 2px; background-color: #e8e6e1; color: #1b1b1b; }
 .badge.busy { background-color: #c6ff3d; }
@@ -93,6 +97,7 @@ body {
   overflow: hidden;
   cursor: pointer;
 }
+.seg-next { border-top: 0; margin-top: -8px; }
 .seg .opt:hover { color: #e8e6e1; }
 .seg .opt.on { background-color: #e8e6e1; color: #1b1b1b; }
 
@@ -102,6 +107,16 @@ body {
 .picker { border: 1px solid #3a3a3a; max-height: 140px; overflow-y: auto; }
 .picker .item { padding: 5px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; letter-spacing: 1px; }
 .picker .item:hover { background-color: #e8e6e1; color: #1b1b1b; }
+
+/* map library: thumbnails in rows of four */
+.library { border: 1px solid #3a3a3a; padding: 6px 6px 0 6px; max-height: 300px; overflow-y: auto; }
+.library .lrow { display: flex; flex-direction: row; margin-bottom: 6px; }
+.library .cell { width: 25%; padding: 0 3px; box-sizing: border-box; cursor: pointer; color: #8a8884; }
+.library .cell img { display: block; width: 100%; height: auto; border: 1px solid #1b1b1b; }
+.library .cell .lname { font-size: 9px; letter-spacing: 1px; white-space: nowrap; overflow: hidden; margin-top: 2px; }
+.library .cell:hover { color: #e8e6e1; }
+.library .cell:hover img { border-color: #c6ff3d; }
+.library .cell.on img { border-color: #e8e6e1; }
 
 /* ASCII sliders: the bar is text, dragging anywhere on it sets the value */
 #sliders { width: 100%; }
@@ -113,6 +128,8 @@ body {
 .slider .bar .rest, .slider .bar .fill { position: absolute; left: 0; top: 2px; overflow: hidden; white-space: nowrap; }
 .slider .bar .rest { width: 100%; color: #2c2c2c; }
 .slider .bar .fill { color: #c6ff3d; }
+/* glitch fragments around the end of the strength bar */
+.slider .bar .gl { position: absolute; height: 12px; top: 3px; }
 
 /* ---- footer ---- */
 .spacer { min-height: 14px; }

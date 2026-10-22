@@ -57,7 +57,7 @@ for (const mode of [D.MODE.DISPLACE, D.MODE.REFRACT, D.MODE.FLOW]) {
 
 {   /* a window renders the same pixels as the full image */
     const map = gradientImage(13, 11);
-    for (const mode of [D.MODE.DISPLACE, D.MODE.REFRACT, D.MODE.FLOW]) {
+    for (const mode of [0, 1, 2, 3, 4, 5]) {
         const p = D.defaults(mode);
         const full = D.apply(src, map, p);
         const part = D.image(10, 8, 4);

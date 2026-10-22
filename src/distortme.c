@@ -49,6 +49,9 @@ const char *dm_mode_name(dm_mode mode)
     case DM_MODE_DISPLACE: return "displace";
     case DM_MODE_REFRACT:  return "refract";
     case DM_MODE_FLOW:     return "flow";
+    case DM_MODE_SPLIT:    return "split";
+    case DM_MODE_SLICE:    return "slice";
+    case DM_MODE_BLOCKS:   return "blocks";
     }
     return "unknown";
 }
@@ -68,6 +71,7 @@ void dm_params_default(dm_params *p, dm_mode mode)
     p->ior           = 1.5f;
     p->flow_dir      = DM_FLOW_ALONG_CONTOURS;
     p->flow_steps    = 32;
+    p->cell          = 12.0f;
     p->threads       = 0;
 
     if (mode == DM_MODE_REFRACT) {
@@ -76,6 +80,12 @@ void dm_params_default(dm_params *p, dm_mode mode)
     } else if (mode == DM_MODE_FLOW) {
         p->strength = 30.0f;
         p->map_blur = 2.0f;
+    } else if (mode == DM_MODE_SPLIT) {
+        p->strength = 12.0f;
+    } else if (mode == DM_MODE_SLICE) {
+        p->strength = 40.0f;
+    } else if (mode == DM_MODE_BLOCKS) {
+        p->strength = 32.0f;
     }
 }
 
@@ -402,6 +412,65 @@ static void shade_flow(const job *j, float x, float y, float *ox, float *oy)
     *oy = py;
 }
 
+/* Map brightness at a source position. */
+static float lum_at(const job *j, float x, float y)
+{
+    float u, v;
+    to_map(j, x, y, &u, &v);
+    return plane_sample(j->map->lum, j->map->w, j->map->h, u, v, j->p->map_edge);
+}
+
+/* Bands `cell` pixels high; each row of a band shifts by the map's
+ * brightness at the band's centre line. */
+static void shade_slice(const job *j, float x, float y, float *ox, float *oy)
+{
+    float cell = j->p->cell > 1.0f ? j->p->cell : 1.0f;
+    float yb   = (floorf(y / cell) + 0.5f) * cell;
+    *ox = x + (lum_at(j, x, yb) - 0.5f) * 2.0f * j->p->strength;
+    *oy = y;
+}
+
+/* Mosaic whose block size follows the map: black = untouched, white =
+ * blocks of `strength` pixels. Each pixel shows its block's centre. */
+static void shade_blocks(const job *j, float x, float y, float *ox, float *oy)
+{
+    float size = floorf(lum_at(j, x, y) * j->p->strength + 0.5f);
+    if (size <= 1.0f) {
+        *ox = x;
+        *oy = y;
+        return;
+    }
+    *ox = (floorf(x / size) + 0.5f) * size;
+    *oy = (floorf(y / size) + 0.5f) * size;
+}
+
+/* Colour channels sampled at different offsets along `angle`, spread
+ * by the map's brightness: first channel forwards, last backwards. */
+static void split_pixel(const job *j, float x, float y, float *out)
+{
+    const dm_image *src = j->src;
+    int   n = src->channels, ai = src->alpha;
+    int   colours = ai >= 0 ? n - 1 : n;
+    float amount = lum_at(j, x, y) * j->p->strength;
+    float tmp[DM_MAX_CHANNELS];
+    float alpha = 0.0f;
+    int   k = 0;
+
+    for (int c = 0; c < n; c++) {
+        if (c == ai)
+            continue;
+        float t = colours > 1 ? 1.0f - 2.0f * (float)k / (float)(colours - 1) : 0.0f;
+        image_sample(src, x + t * amount * j->cos_a, y + t * amount * j->sin_a,
+                     j->p->src_edge, tmp);
+        out[c] = tmp[c];
+        if (ai >= 0 && tmp[ai] > alpha)
+            alpha = tmp[ai]; /* keep the widest coverage: no holes at edges */
+        k++;
+    }
+    if (ai >= 0)
+        out[ai] = alpha;
+}
+
 static void run_rows(void *arg, int y_begin, int y_end)
 {
     const job *j = (const job *)arg;
@@ -410,9 +479,15 @@ static void run_rows(void *arg, int y_begin, int y_end)
     for (int y = y_begin; y < y_end; y++) {
         for (int x = 0; x < w; x++) {
             float cx = x + j->left + 0.5f, cy = y + j->top + 0.5f, sx, sy;
+            if (j->p->mode == DM_MODE_SPLIT) {
+                split_pixel(j, cx, cy, j->dst->data + ((size_t)y * w + x) * n);
+                continue;
+            }
             switch (j->p->mode) {
             case DM_MODE_REFRACT: shade_refract(j, cx, cy, &sx, &sy); break;
             case DM_MODE_FLOW:    shade_flow(j, cx, cy, &sx, &sy);    break;
+            case DM_MODE_SLICE:   shade_slice(j, cx, cy, &sx, &sy);   break;
+            case DM_MODE_BLOCKS:  shade_blocks(j, cx, cy, &sx, &sy);  break;
             case DM_MODE_DISPLACE:
             default:              shade_displace(j, cx, cy, &sx, &sy); break;
             }
