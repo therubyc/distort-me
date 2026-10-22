@@ -10,7 +10,7 @@
   <div class="head">
     <img class="title" src="icons/title.svg" alt="Distort Me">
     <div class="head-right">
-      <div class="dim">v0.3</div>
+      <div class="dim">v0.3.1</div>
       <div class="toggle" id="smartToggle" data-info="Apply as a Smart Filter, so you can change it later. Converts the layer to a Smart Object if needed.">[x] SMART</div>
     </div>
   </div>
@@ -24,13 +24,22 @@
   </div>
   <div class="thin"></div>
 
-  <div class="preview" id="previewBox" data-info="Live preview. The filter itself always renders at full resolution.">
+  <div class="preview" id="previewBox" data-info="Live preview. Click zooms in, right click zooms out, wheel zooms, drag pans, double click fits.">
     <img id="preview" alt="">
+    <img id="detail" alt="">
     <div class="badge hidden" id="badge"></div>
+  </div>
+  <div class="viewbar">
+    <div class="vtab on" id="viewResult" data-info="Show the result.">RESULT</div>
+    <div class="vtab" id="viewOrig" data-info="Show the source without the effect.">ORIG</div>
+    <div class="grow"></div>
+    <div class="dim small" id="status"></div>
+    <div class="small" id="zoomInfo"></div>
+    <div class="fit" id="fitBtn" data-info="Fit the whole image into the preview (or double click it).">FIT</div>
   </div>
   <div class="row between small dim caption">
     <div class="ellipsis grow" id="srcInfo">PREVIEW OF &gt; NOTHING YET</div>
-    <div id="status"></div>
+    <div class="hint">L+ R- WHEEL DBL</div>
   </div>
 
   <div class="section">

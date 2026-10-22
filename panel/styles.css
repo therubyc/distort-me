@@ -18,12 +18,11 @@ body {
   overflow-y: auto; /* the panel scrolls when it is shorter than its content */
 }
 
-/* At least as tall as the panel: the preview takes the spare height. */
+/* The preview's height is set from main.js so the panel fills its height. */
 #app {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  min-height: 100%;
   padding: 14px 16px 12px 16px;
 }
 
@@ -43,7 +42,7 @@ body {
 
 /* ---- header ---- */
 .head { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; }
-.title { width: 150px; height: auto; }
+.title { width: 125px; height: 66px; } /* same height as Make Me Analog's title */
 .head-right { display: flex; flex-direction: column; align-items: flex-end; letter-spacing: 2px; }
 .head-right > * { margin-bottom: 10px; }
 .toggle { cursor: pointer; padding: 3px 6px; }
@@ -60,8 +59,17 @@ body {
 .ghost:hover { color: #ffffff; }
 
 /* ---- preview ---- */
-.preview { position: relative; flex: 1 1 auto; height: 200px; min-height: 200px; background-color: #222222; overflow: hidden; }
-.preview #preview { position: absolute; left: 0; top: 0; }
+.preview { position: relative; height: 200px; background-color: #222222; overflow: hidden; cursor: zoom-in; }
+.preview #preview, .preview #detail { position: absolute; left: 0; top: 0; display: none; }
+.viewbar { display: flex; flex-direction: row; align-items: center; margin-top: 6px; letter-spacing: 2px; }
+.viewbar > * { margin-right: 6px; }
+.viewbar > *:last-child { margin-right: 0; }
+.vtab { padding: 3px 6px; cursor: pointer; color: #8a8884; }
+.vtab:hover { color: #e8e6e1; }
+.vtab.on { background-color: #e8e6e1; color: #1b1b1b; }
+.fit { padding: 3px 14px; border: 1px solid #8a8884; cursor: pointer; }
+.fit:hover, .fit.on { border-color: #e8e6e1; }
+.hint { letter-spacing: 1px; white-space: nowrap; }
 .badge { position: absolute; left: 0; top: 0; padding: 2px 6px; letter-spacing: 2px; background-color: #e8e6e1; color: #1b1b1b; }
 .badge.busy { background-color: #c6ff3d; }
 .caption { margin-top: 6px; }
@@ -134,8 +142,10 @@ body {
 /* ---- footer ---- */
 .spacer { min-height: 14px; }
 .ticks { color: #3a3a3a; white-space: nowrap; overflow: hidden; margin-bottom: 10px; }
-.info { border-top: 1px solid #3a3a3a; padding: 8px 0; color: #8a8884; min-height: 26px; }
-.log { padding: 4px 0 10px 0; letter-spacing: 1px; }
+/* fixed heights: changing text must never move the layout (the preview
+ * takes the leftover height, so it would jump on every hover) */
+.info { border-top: 1px solid #3a3a3a; padding: 8px 0; color: #8a8884; height: 28px; line-height: 14px; overflow: hidden; }
+.log { padding: 4px 0 10px 0; letter-spacing: 1px; height: 14px; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .log.error { color: #ff5c7a; }
 .foot { justify-content: flex-end; }
 .apply {

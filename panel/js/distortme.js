@@ -167,7 +167,11 @@
     }
 
     /* Renders `dst` (a window of `src` at left/top, or the whole of it).
-     * `prepared` is optional: pass prepareMap()'s result to reuse it. */
+     * `prepared` is optional: pass prepareMap()'s result to reuse it.
+     * When `src` is only a crop of a larger image (the panel's zoomed
+     * view), p.originX/originY give the crop's position in that image and
+     * p.fullWidth/fullHeight its size, so the map, the slice bands and the
+     * block grid line up with the whole image. */
     function apply(src, map, p, dst, left, top, prepared) {
         left = left || 0; top = top || 0;
         if (!dst) { dst = image(src.width, src.height, src.channels); dst.alpha = src.alpha; }
@@ -180,9 +184,10 @@
         if (p.mapFit === FIT.TILE) {
             sx = sy = 1 / Math.max(p.mapScale, 1e-4);
         } else {
-            sx = map.width / src.width;
-            sy = map.height / src.height;
+            sx = map.width / (p.fullWidth || src.width);
+            sy = map.height / (p.fullHeight || src.height);
         }
+        var bx = p.originX || 0, by = p.originY || 0;
         var mw = m.w, mh = m.h, me = p.mapEdge, ox = p.mapOffsetX, oy = p.mapOffsetY;
         var strength = p.strength;
         var cosA = Math.cos(p.angle * Math.PI / 180), sinA = Math.sin(p.angle * Math.PI / 180);
@@ -266,7 +271,7 @@
             for (var c = 0; c < n; c++) {
                 if (c === ai) continue;
                 var t = colours > 1 ? 1 - 2 * k / (colours - 1) : 0;
-                imageSample(src, x + t * amount * cosA, y + t * amount * sinA, p.srcEdge, tmp, 0);
+                imageSample(src, x + t * amount * cosA - bx, y + t * amount * sinA - by, p.srcEdge, tmp, 0);
                 dst.data[o + c] = tmp[c];
                 if (ai >= 0 && tmp[ai] > alpha) alpha = tmp[ai];
                 k++;
@@ -276,11 +281,11 @@
         for (var y = 0; y < dst.height; y++) {
             for (var x = 0; x < W; x++) {
                 if (p.mode === MODE.SPLIT) {
-                    split(x + left + 0.5, y + top + 0.5, (y * W + x) * n);
+                    split(x + left + 0.5 + bx, y + top + 0.5 + by, (y * W + x) * n);
                     continue;
                 }
-                shade(x + left + 0.5, y + top + 0.5);
-                imageSample(src, res[0], res[1], p.srcEdge, dst.data, (y * W + x) * n);
+                shade(x + left + 0.5 + bx, y + top + 0.5 + by);
+                imageSample(src, res[0] - bx, res[1] - by, p.srcEdge, dst.data, (y * W + x) * n);
             }
         }
         return dst;

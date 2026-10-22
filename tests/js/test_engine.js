@@ -72,6 +72,31 @@ for (const mode of [D.MODE.DISPLACE, D.MODE.REFRACT, D.MODE.FLOW]) {
     }
 }
 
+{   /* a crop with originX/Y and fullWidth/Height renders like the whole image */
+    const map = gradientImage(13, 11);
+    const cx = 8, cy = 5, cw = 24, ch = 20, m = 6;
+    const crop = D.image(cw, ch, 4);
+    crop.alpha = 3;
+    for (let y = 0; y < ch; y++)
+        for (let x = 0; x < cw; x++)
+            for (let c = 0; c < 4; c++)
+                crop.data[(y * cw + x) * 4 + c] = src.data[((y + cy) * src.width + x + cx) * 4 + c];
+    for (const mode of [0, 1, 2, 3, 4, 5]) {
+        const p = D.defaults(mode);
+        p.strength = 2;
+        p.cell = 3;
+        const full = D.apply(src, map, p);
+        const q = Object.assign({}, p, { originX: cx, originY: cy, fullWidth: src.width, fullHeight: src.height });
+        const out = D.apply(crop, map, q);
+        let d = 0;
+        for (let y = m; y < ch - m; y++)
+            for (let x = m; x < cw - m; x++)
+                for (let c = 0; c < 4; c++)
+                    d = Math.max(d, Math.abs(out.data[(y * cw + x) * 4 + c] - full.data[((y + cy) * src.width + x + cx) * 4 + c]));
+        check('crop matches full render, mode ' + mode, d < 1e-6);
+    }
+}
+
 {   /* reusing a prepared map gives the same result */
     const map = gradientImage(13, 11);
     const p = D.defaults(D.MODE.REFRACT);

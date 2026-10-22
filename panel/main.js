@@ -27,6 +27,10 @@ const SRGB = 'sRGB IEC61966-2.1';
 const state = {
     p: DM.defaults(DM.MODE.DISPLACE),
     smart: true,
+    showOrig: false, /* preview shows the untouched source */
+    view: { z: 1, cx: 0, cy: 0 },        /* zoom (1 = fit) and centre in document pixels */
+    shown: { base: null, detail: null }, /* document rectangles of the preview images */
+    detail: null,   /* sharper crop of the source while zoomed: { img, scale, bounds, docId, layerId } */
     src: null,      /* { img, half, scale, docId, layerId, name, docW, docH } */
     map: null,      /* { img, prepared, scale, name, path, w, h } */
     eventIndex: 0,
@@ -252,14 +256,18 @@ function fitSize(w, h, max) {
 }
 
 /* Reads pixels of a layer (or the composite when layerID is null) into
- * a float image covering the whole document, at most `max` pixels on
- * its longest side. Transparent outside the layer's bounds. */
-async function readPixels(doc, layerID, max) {
+ * a float image covering `bounds` of the document (default: all of it),
+ * at most `max` pixels on its longest side. Transparent outside the
+ * layer's bounds. */
+async function readPixels(doc, layerID, max, bounds) {
     const docW = Math.round(doc.width), docH = Math.round(doc.height);
+    const b = bounds || { left: 0, top: 0, right: docW, bottom: docH };
+    const bw = b.right - b.left, bh = b.bottom - b.top;
+    const want = fitSize(bw, bh, max);
     const opts = {
         documentID: doc.id,
-        sourceBounds: { left: 0, top: 0, right: docW, bottom: docH },
-        targetSize: fitSize(docW, docH, max),
+        sourceBounds: { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
+        targetSize: want,
         componentSize: 8,
         applyAlpha: false,
         colorSpace: 'RGB',
@@ -276,21 +284,20 @@ async function readPixels(doc, layerID, max) {
          * 1/2^level of full size), and then sourceBounds are in that level's
          * pixels. Without a cached level it may return full size. Either way,
          * shrink further here by averaging step×step blocks. */
-        const want = fitSize(docW, docH, max);
         const lvl = res.level || 0, sbw = sb.right - sb.left;
         let got, oxL, oyL; /* returned pixels per document pixel, offset in returned pixels */
         if (lvl > 0 && Math.abs(sbw - id.width) <= 1) {
             got = Math.pow(2, -lvl);
-            oxL = sb.left;
-            oyL = sb.top;
+            oxL = sb.left - b.left * got;
+            oyL = sb.top - b.top * got;
         } else {
             got = id.width / Math.max(1, sbw);
-            oxL = sb.left * got;
-            oyL = sb.top * got;
+            oxL = (sb.left - b.left) * got;
+            oyL = (sb.top - b.top) * got;
         }
-        const step = Math.max(1, Math.floor(got / (want.width / docW)));
+        const step = Math.max(1, Math.floor(got / (want.width / bw)));
         const scale = got / step;
-        const W = Math.max(1, Math.round(docW * scale)), H = Math.max(1, Math.round(docH * scale));
+        const W = Math.max(1, Math.round(bw * scale)), H = Math.max(1, Math.round(bh * scale));
         const img = DM.image(W, H, 4);
         img.alpha = 3;
         const n = id.components, ox = Math.round(oxL / step), oy = Math.round(oyL / step);
@@ -301,27 +308,26 @@ async function readPixels(doc, layerID, max) {
             for (let x = 0; x < sw; x++) {
                 const tx = x + ox;
                 if (tx < 0 || tx >= W) continue;
-                let r = 0, g = 0, b = 0, a = 0;
+                let r = 0, g = 0, bl = 0, a = 0;
                 for (let j = 0; j < step; j++) {
                     let s = ((y * step + j) * id.width + x * step) * n;
                     for (let i = 0; i < step; i++, s += n) {
                         const al = n === 4 ? bytes[s + 3] : 255;
                         r += bytes[s] * al / 255;
                         g += bytes[s + 1] * al / 255;
-                        b += bytes[s + 2] * al / 255;
+                        bl += bytes[s + 2] * al / 255;
                         a += al;
                     }
                 }
                 const d = (ty * W + tx) * 4;
                 /* averaged premultiplied, stored straight */
-                const am = a * k;
                 img.data[d] = a > 0 ? r / a : 0;
                 img.data[d + 1] = a > 0 ? g / a : 0;
-                img.data[d + 2] = a > 0 ? b / a : 0;
-                img.data[d + 3] = am;
+                img.data[d + 2] = a > 0 ? bl / a : 0;
+                img.data[d + 3] = a * k;
             }
         }
-        return { img: img, scale: scale, docW: docW, docH: docH };
+        return { img: img, scale: scale, docW: docW, docH: docH, bounds: b };
     } finally {
         id.dispose();
     }
@@ -358,26 +364,268 @@ function fitInBox(target, W, H) {
     target.style.top = Math.round((box.height - h) / 2) + 'px';
 }
 
-/* The preview box grows with the panel. UXP's resize event is unreliable,
- * so check its size now and then and re-fit the image when it changed. */
-function watchPreviewSize() {
+/* ---------------------------------------------------------------- */
+/* Preview box: size, zoom and pan                                   */
+/* ---------------------------------------------------------------- */
+
+/* The preview takes whatever height the panel has left over (at least
+ * PREVIEW_MIN_H). Done in script because UXP's flex layout and resize
+ * event are unreliable; a timer checks the panel size a few times a
+ * second and only touches the layout when something changed. */
+const PREVIEW_MIN_H = 200;
+const ZOOM_MAX_PX = 8; /* screen pixels per document pixel at most */
+
+function viewportHeight() {
+    return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight || 0;
+}
+
+function fitPreviewHeight() {
     const box = document.getElementById('previewBox');
-    const img = document.getElementById('preview');
+    const app = document.getElementById('app');
+    const vh = viewportHeight();
+    if (!vh)
+        return false;
+    const boxH = box.getBoundingClientRect().height;
+    const rest = app.getBoundingClientRect().height - boxH;
+    const h = Math.max(PREVIEW_MIN_H, Math.floor(vh - rest));
+    if (Math.abs(h - boxH) < 2)
+        return false;
+    box.style.height = h + 'px';
+    return true;
+}
+
+function watchLayout() {
+    const box = document.getElementById('previewBox');
     let last = '';
-    setInterval(() => {
+    const tick = () => {
+        fitPreviewHeight();
         const r = box.getBoundingClientRect();
         const key = Math.round(r.width) + 'x' + Math.round(r.height);
         if (key === last)
             return;
         last = key;
-        if (img.dataset.w)
-            fitInBox(img, +img.dataset.w, +img.dataset.h);
+        layoutPreview();
         SLIDERS.forEach(s => { if (s.glitch && s.fill) updateSlider(s); });
-    }, 400);
+        if (state.view.z > 1)
+            scheduleDetail();
+    };
+    tick();
+    setInterval(tick, 250);
+}
+
+/* The view: zoom z (1 = whole image fits) around the document point
+ * (cx, cy). Images in the box carry the document rectangle they show. */
+function boxSize() {
+    const r = document.getElementById('previewBox').getBoundingClientRect();
+    return { w: r.width, h: r.height };
+}
+
+function docSize() {
+    return state.src ? { w: state.src.docW, h: state.src.docH } : null;
+}
+
+/* screen pixels per document pixel */
+function viewScale() {
+    const d = docSize(), b = boxSize();
+    if (!d || !b.w || !b.h)
+        return 0;
+    return Math.min(b.w / d.w, b.h / d.h) * state.view.z;
+}
+
+function clampView() {
+    const d = docSize(), b = boxSize(), k = viewScale();
+    if (!d || !k)
+        return;
+    const v = state.view;
+    const halfW = b.w / (2 * k), halfH = b.h / (2 * k);
+    v.cx = d.w <= 2 * halfW ? d.w / 2 : Math.min(d.w - halfW, Math.max(halfW, v.cx));
+    v.cy = d.h <= 2 * halfH ? d.h / 2 : Math.min(d.h - halfH, Math.max(halfH, v.cy));
+}
+
+/* Places an image that shows document rectangle `r` according to the view. */
+function placeImage(img, r) {
+    const b = boxSize(), k = viewScale();
+    if (!r || !k) {
+        img.style.display = 'none';
+        return;
+    }
+    img.style.display = 'block';
+    img.style.left = Math.round(b.w / 2 + (r.left - state.view.cx) * k) + 'px';
+    img.style.top = Math.round(b.h / 2 + (r.top - state.view.cy) * k) + 'px';
+    img.style.width = Math.max(1, Math.round((r.right - r.left) * k)) + 'px';
+    img.style.height = Math.max(1, Math.round((r.bottom - r.top) * k)) + 'px';
+}
+
+function layoutPreview() {
+    clampView();
+    placeImage(document.getElementById('preview'), state.shown.base);
+    placeImage(document.getElementById('detail'), state.view.z > 1 ? state.shown.detail : null);
+    const k = viewScale();
+    document.getElementById('zoomInfo').textContent = k ? Math.round(k * 100) + '%' : '';
+    document.getElementById('fitBtn').classList.toggle('on', state.view.z === 1);
+}
+
+/* Zooms by `f` keeping the document point under (sx, sy) in place. */
+function zoomAt(f, sx, sy) {
+    const d = docSize();
+    if (!d)
+        return;
+    const b = boxSize(), v = state.view;
+    const k0 = viewScale();
+    if (!k0)
+        return;
+    const fitK = k0 / v.z;
+    const zMax = Math.max(1, ZOOM_MAX_PX / fitK);
+    const z = Math.min(zMax, Math.max(1, v.z * f));
+    if (z === v.z)
+        return;
+    /* the document point under the cursor stays put */
+    const px = v.cx + (sx - b.w / 2) / k0, py = v.cy + (sy - b.h / 2) / k0;
+    v.z = z;
+    const k1 = fitK * z;
+    v.cx = px - (sx - b.w / 2) / k1;
+    v.cy = py - (sy - b.h / 2) / k1;
+    layoutPreview();
+    scheduleDetail();
+}
+
+function fitView() {
+    const d = docSize();
+    state.view.z = 1;
+    if (d) {
+        state.view.cx = d.w / 2;
+        state.view.cy = d.h / 2;
+    }
+    layoutPreview();
+}
+
+/* Mouse on the preview, as in Make Me Analog: left click zooms in,
+ * right click zooms out, the wheel zooms, double click fits, dragging
+ * pans. */
+function bindPreviewMouse() {
+    const box = document.getElementById('previewBox');
+    let down = null, clickTimer = null;
+    const local = e => {
+        const r = box.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    box.addEventListener('mousedown', e => {
+        down = { x: e.clientX, y: e.clientY, cx: state.view.cx, cy: state.view.cy, moved: false, button: e.button };
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+        if (!down || down.button !== 0)
+            return;
+        const dx = e.clientX - down.x, dy = e.clientY - down.y;
+        if (!down.moved && Math.abs(dx) + Math.abs(dy) < 4)
+            return;
+        down.moved = true;
+        const k = viewScale();
+        if (!k || state.view.z === 1)
+            return;
+        state.view.cx = down.cx - dx / k;
+        state.view.cy = down.cy - dy / k;
+        layoutPreview();
+    });
+    document.addEventListener('mouseup', e => {
+        if (!down)
+            return;
+        const d = down;
+        down = null;
+        if (d.moved) {
+            scheduleDetail();
+            return;
+        }
+        const p = local(e);
+        if (d.button === 2) {
+            zoomAt(0.5, p.x, p.y);
+        } else if (d.button === 0) {
+            /* wait a moment: a double click fits instead */
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => zoomAt(2, p.x, p.y), 230);
+        }
+    });
+    box.addEventListener('dblclick', e => {
+        clearTimeout(clickTimer);
+        fitView();
+        e.preventDefault();
+    });
+    box.addEventListener('contextmenu', e => e.preventDefault());
+    box.addEventListener('wheel', e => {
+        const p = local(e);
+        zoomAt(e.deltaY < 0 ? 1.25 : 0.8, p.x, p.y);
+        e.preventDefault();
+    });
+    document.getElementById('fitBtn').addEventListener('click', fitView);
+}
+
+/* ---------------------------------------------------------------- */
+/* Detail: a sharper crop of the source while zoomed in              */
+/* ---------------------------------------------------------------- */
+
+let detailTimer = null;
+function scheduleDetail() {
+    clearTimeout(detailTimer);
+    detailTimer = setTimeout(loadDetail, 200);
+}
+
+/* The document rectangle in view, grown by `pad` document pixels. */
+function visibleRect(pad) {
+    const d = docSize(), b = boxSize(), k = viewScale(), v = state.view;
+    const hw = b.w / (2 * k) + pad, hh = b.h / (2 * k) + pad;
+    return {
+        left: Math.max(0, Math.floor(v.cx - hw)), top: Math.max(0, Math.floor(v.cy - hh)),
+        right: Math.min(d.w, Math.ceil(v.cx + hw)), bottom: Math.min(d.h, Math.ceil(v.cy + hh))
+    };
+}
+
+function contains(a, b) {
+    return a && b && a.left <= b.left && a.top <= b.top && a.right >= b.right && a.bottom >= b.bottom;
+}
+
+async function loadDetail() {
+    const src = state.src, k = viewScale();
+    if (!src || !k || state.view.z === 1)
+        return;
+    const want = Math.min(1, k); /* never more than the document's own pixels */
+    if (want <= src.scale * 1.15) {
+        /* the whole-image preview is sharp enough */
+        state.detail = null;
+        state.shown.detail = null;
+        layoutPreview();
+        return;
+    }
+    const det = state.detail;
+    const needed = visibleRect(0);
+    if (det && det.docId === src.docId && det.layerId === src.layerId &&
+        det.scale >= want * 0.95 && contains(det.bounds, needed)) {
+        if (state.shown.detail !== det.bounds)
+            schedule();
+        return;
+    }
+    /* read a margin around the view: displaced pixels come from outside it,
+     * and a small pan should not need a new read */
+    const pad = Math.max(32, state.p.strength * 1.5) +
+                0.25 * Math.max(needed.right - needed.left, needed.bottom - needed.top);
+    const r = visibleRect(pad);
+    const doc = app.documents.find(d => d.id === src.docId);
+    if (!doc)
+        return;
+    const max = Math.ceil(Math.max(r.right - r.left, r.bottom - r.top) * want);
+    try {
+        const res = await core.executeAsModal(() => readPixels(doc, src.layerId, max, r),
+                                               { commandName: 'Distort Me: read detail' });
+        if (state.src !== src)
+            return;
+        state.detail = { img: res.img, scale: res.scale, bounds: r, docId: src.docId, layerId: src.layerId };
+        schedule();
+    } catch (e) {
+        log('can\'t read detail: ' + (e.message || e), true);
+    }
 }
 
 /* Float RGBA -> 8-bit RGB over a dark checkerboard, then JPEG for <img>. */
-async function showImage(img, target) {
+async function encodeImage(img) {
     const W = img.width, H = img.height;
     const rgb = new Uint8Array(W * H * 3);
     for (let y = 0; y < H; y++)
@@ -394,14 +642,24 @@ async function showImage(img, target) {
         width: W, height: H, components: 3, chunky: true, colorSpace: 'RGB', colorProfile: SRGB
     });
     try {
-        const jpeg = await imaging.encodeImageData({ imageData: id, base64: true });
-        target.src = 'data:image/jpeg;base64,' + jpeg;
-        target.dataset.w = W;
-        target.dataset.h = H;
-        fitInBox(target, W, H);
+        return 'data:image/jpeg;base64,' + await imaging.encodeImageData({ imageData: id, base64: true });
     } finally {
         id.dispose();
     }
+}
+
+/* Shows a whole image fitted into its box (the map thumbnail). */
+async function showImage(img, target) {
+    target.src = await encodeImage(img);
+    fitInBox(target, img.width, img.height);
+}
+
+/* Shows a preview image that covers document rectangle `rect`. */
+async function showPreview(img, which, rect) {
+    const el = document.getElementById(which === 'detail' ? 'detail' : 'preview');
+    el.src = await encodeImage(img);
+    state.shown[which] = rect;
+    layoutPreview();
 }
 
 /* ---------------------------------------------------------------- */
@@ -414,6 +672,24 @@ function schedule() {
         setTimeout(renderPreview, 0);
 }
 
+/* The effect on a preview image rendered at `scale` times the document
+ * size. For a crop, origin and full give its place in the whole image. */
+function render(srcImg, scale, origin, full) {
+    const map = state.map;
+    if (state.showOrig || !map)
+        return srcImg;
+    const q = DM.scaleParams(state.p, scale, map.scale);
+    if (origin) {
+        q.originX = origin.x;
+        q.originY = origin.y;
+        q.fullWidth = full.w;
+        q.fullHeight = full.h;
+    }
+    if (!map.prepared || map.prepared.blur !== q.mapBlur || map.prepared.edge !== q.mapEdge)
+        map.prepared = DM.prepareMap(map.img, q);
+    return DM.apply(srcImg, map.img, q, null, 0, 0, map.prepared);
+}
+
 async function renderPreview() {
     if (state.rendering || !state.pending)
         return;
@@ -423,27 +699,25 @@ async function renderPreview() {
         badge('NO SOURCE');
         return;
     }
-    if (!map) {
-        badge('NO MAP');
-        await showImage(src.img, document.getElementById('preview'));
-        status('PICK A MAP');
-        return;
-    }
     state.rendering = true;
     if (!state.dragging) badge('RENDER', 'busy');
     try {
+        const whole = { left: 0, top: 0, right: src.docW, bottom: src.docH };
         const fast = state.dragging && src.half;
-        const img = fast ? src.half : src.img;
-        const s = src.scale * (fast ? 0.5 : 1);
-        const q = DM.scaleParams(state.p, s, map.scale);
-        if (!map.prepared || map.prepared.blur !== q.mapBlur || map.prepared.edge !== q.mapEdge)
-            map.prepared = DM.prepareMap(map.img, q);
         const t0 = Date.now();
-        const out = DM.apply(img, map.img, q, null, 0, 0, map.prepared);
+        const out = render(fast ? src.half : src.img, src.scale * (fast ? 0.5 : 1), null, null);
+        await showPreview(out, 'base', whole);
+        /* zoomed in: the sharp crop on top */
+        const det = state.detail;
+        if (state.view.z > 1 && det && det.docId === src.docId) {
+            const b = det.bounds;
+            const outD = render(det.img, det.scale, { x: b.left * det.scale, y: b.top * det.scale },
+                                { w: src.docW * det.scale, h: src.docH * det.scale });
+            await showPreview(outD, 'detail', b);
+        }
         const ms = Date.now() - t0;
-        await showImage(out, document.getElementById('preview'));
-        badge('');
-        status(Math.round(s * 100) + '% · ' + ms + 'MS');
+        badge(map || state.showOrig ? '' : 'NO MAP');
+        status(state.showOrig ? 'ORIGINAL' : map ? ms + 'MS' : 'PICK A MAP');
     } catch (e) {
         badge('ERROR');
         log(String(e.message || e), true);
@@ -477,10 +751,17 @@ async function loadSource() {
     try {
         const r = await core.executeAsModal(() => readPixels(doc, layer.id, PREVIEW_MAX),
                                              { commandName: 'Distort Me: read layer' });
+        const same = state.src && state.src.docId === doc.id && state.src.docW === r.docW && state.src.docH === r.docH;
         state.src = {
             img: r.img, half: halve(r.img), scale: r.scale, docW: r.docW, docH: r.docH,
             docId: doc.id, layerId: layer.id, name: layer.name
         };
+        state.detail = null;
+        state.shown.detail = null;
+        if (same && state.view.z > 1)
+            scheduleDetail(); /* reload: keep the view */
+        else
+            fitView();
         document.getElementById('srcInfo').textContent =
             ('PREVIEW OF > ' + doc.title + ' · ' + layer.name).toUpperCase();
         log('layer loaded');
@@ -795,7 +1076,16 @@ function init() {
     document.getElementById('apply').addEventListener('click', apply);
     document.getElementById('reset').addEventListener('click', reset);
     document.getElementById('mapLib').addEventListener('click', toggleLibrary);
-    watchPreviewSize();
+    bindPreviewMouse();
+    const setOrig = on => {
+        state.showOrig = on;
+        document.getElementById('viewOrig').classList.toggle('on', on);
+        document.getElementById('viewResult').classList.toggle('on', !on);
+        schedule();
+    };
+    document.getElementById('viewResult').addEventListener('click', () => setOrig(false));
+    document.getElementById('viewOrig').addEventListener('click', () => setOrig(true));
+    watchLayout();
     document.getElementById('smartToggle').addEventListener('click', () => {
         state.smart = !state.smart;
         syncSegments();
